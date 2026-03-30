@@ -45,17 +45,24 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        connection: {
-          host: new URL(
-            config.get<string>('REDIS_URL', 'redis://localhost:6379'),
-          ).hostname,
-          port: parseInt(
-            new URL(config.get<string>('REDIS_URL', 'redis://localhost:6379'))
-              .port || '6379',
-          ),
-        },
-      }),
+      useFactory: (config: ConfigService) => {
+        const redisStr = config.get<string>('REDIS_URL', 'redis://localhost:6379');
+        try {
+          const redisUrl = new URL(redisStr);
+          return {
+            connection: {
+              host: redisUrl.hostname,
+              port: parseInt(redisUrl.port || '6379'),
+              username: redisUrl.username || undefined,
+              password: redisUrl.password || undefined,
+              tls: redisUrl.protocol === 'rediss:' ? {} : undefined,
+            },
+          };
+        } catch (error) {
+          // Fallback if URL is invalid (very unlikely unless REDIS_URL is manually corrupted)
+          return { connection: { host: 'localhost', port: 6379 } };
+        }
+      },
     }),
 
     // Core
