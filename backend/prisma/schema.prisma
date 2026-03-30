@@ -1,0 +1,212 @@
+// AI Study OS (Pro) - Database Schema
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// AUTH & USER
+// ============================================
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String?
+  name      String
+  avatar    String?
+  provider  String   @default("local") // local | google
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  essays     Essay[]
+  lectures   Lecture[]
+  flashcards Flashcard[]
+  quizzes    Quiz[]
+  aiContexts AIContext[]
+  chatSessions ChatSession[]
+  studyStats StudyStats?
+
+  @@map("users")
+}
+
+// ============================================
+// ESSAY ENGINE
+// ============================================
+model Essay {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prompt          String
+  rubric          Json     // Rubric criteria as JSON
+  content         String?  @db.Text
+  outline         String?  @db.Text
+  scorePrediction Int?     // 0-100
+  feedback        Json?    // Detailed feedback per rubric criteria
+  status          String   @default("pending") // pending | generating | completed | failed
+  improvementLog  Json?    // History of improvements
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@map("essays")
+}
+
+// ============================================
+// LECTURE INTELLIGENCE
+// ============================================
+model Lecture {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  audioUrl        String?
+  audioFileName   String?
+  transcript      String?  @db.Text
+  cleanTranscript String?  @db.Text
+  summaryShort    String?  @db.Text
+  summaryDetailed String?  @db.Text
+  topics          Json?    // Array of extracted topics
+  keyConcepts     Json?    // Key concepts, definitions, formulas
+  examQuestions   Json?    // Likely exam questions
+  status          String   @default("uploaded") // uploaded | transcribing | processing | completed | failed
+  processingLog   Json?    // Job processing history
+  duration        Int?     // Audio duration in seconds
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  flashcards Flashcard[]
+  quizzes    Quiz[]
+
+  @@index([userId])
+  @@map("lectures")
+}
+
+// ============================================
+// FLASHCARDS (SRS)
+// ============================================
+model Flashcard {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceLectureId String?
+  sourceLecture   Lecture?  @relation(fields: [sourceLectureId], references: [id], onDelete: SetNull)
+  question        String    @db.Text
+  answer          String    @db.Text
+  difficulty      String    @default("medium") // easy | medium | hard
+  nextReviewDate  DateTime  @default(now())
+  interval        Int       @default(1) // Days until next review
+  easeFactor      Float     @default(2.5) // SM-2 ease factor
+  repetitions     Int       @default(0)
+  lastReviewedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId, nextReviewDate])
+  @@index([sourceLectureId])
+  @@map("flashcards")
+}
+
+// ============================================
+// QUIZ SYSTEM
+// ============================================
+model Quiz {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceLectureId String?
+  sourceLecture   Lecture?  @relation(fields: [sourceLectureId], references: [id], onDelete: SetNull)
+  title           String?
+  questions       Json     // Array of quiz questions with answers
+  score           Int?     // Percentage score
+  totalQuestions  Int      @default(0)
+  correctAnswers  Int      @default(0)
+  timeSpent       Int?     // Seconds
+  status          String   @default("pending") // pending | in_progress | completed
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([sourceLectureId])
+  @@map("quizzes")
+}
+
+// ============================================
+// AI CONTEXT (RAG SYSTEM)
+// ============================================
+model AIContext {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String   @db.Text
+  embedding Json?    // Vector embedding stored as JSON array
+  type      String   // essay | lecture | note | flashcard
+  sourceId  String?  // Reference to source entity
+  metadata  Json?    // Additional metadata
+  createdAt DateTime @default(now())
+
+  @@index([userId, type])
+  @@map("ai_contexts")
+}
+
+// ============================================
+// CHAT SESSIONS
+// ============================================
+model ChatSession {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  messages  Json     @default("[]") // Array of chat messages
+  context   Json?    // Injected context for RAG
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("chat_sessions")
+}
+
+// ============================================
+// STUDY STATS / ANALYTICS
+// ============================================
+model StudyStats {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalStudyTime  Int      @default(0) // Minutes
+  streakDays      Int      @default(0)
+  longestStreak   Int      @default(0)
+  lastStudyDate   DateTime?
+  weakTopics      Json?    // Array of weak topics
+  retentionScore  Float?   // Overall retention percentage
+  dailyGoal       Int      @default(30) // Minutes per day
+  weeklyStats     Json?    // Weekly performance data
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("study_stats")
+}
+
+// ============================================
+// JOB TRACKING
+// ============================================
+model JobRecord {
+  id          String   @id @default(uuid())
+  jobId       String   @unique
+  type        String   // transcription | summarization | flashcard | embedding | scoring
+  status      String   @default("queued") // queued | processing | completed | failed
+  entityId    String?  // Reference to related entity
+  entityType  String?  // essay | lecture
+  payload     Json?
+  result      Json?
+  error       String?  @db.Text
+  attempts    Int      @default(0)
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@index([jobId])
+  @@index([entityId, entityType])
+  @@map("job_records")
+}
