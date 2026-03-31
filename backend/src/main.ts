@@ -23,6 +23,12 @@ async function bootstrap(): Promise<void> {
     allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
+  // Redirect root domain to Swagger API documentation
+  const httpAdapter = app.getHttpAdapter();
+  httpAdapter.get('/', (req, res) => {
+    res.redirect('/api/docs');
+  });
+
   // API prefix
   const prefix = process.env.API_PREFIX || 'v1';
   app.setGlobalPrefix(prefix);
