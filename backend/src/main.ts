@@ -77,7 +77,7 @@ All endpoints require JWT Bearer token (except /health and /auth).
   });
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
+  await app.listen(port, '0.0.0.0');
 
   logger.log(
     `🚀 AI Study OS API running on: http://localhost:${port}/${prefix}`,
