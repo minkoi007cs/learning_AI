@@ -8,7 +8,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 RUN npm ci --only=production && \
-    npx prisma generate
+    DATABASE_URL="postgresql://fake@localhost:5432/fake" npx prisma generate
 
 # ============================================
 # Stage 2: Build
@@ -23,7 +23,7 @@ COPY prisma ./prisma/
 COPY src ./src/
 
 RUN npm ci && \
-    npx prisma generate && \
+    DATABASE_URL="postgresql://fake@localhost:5432/fake" npx prisma generate && \
     npm run build
 
 # ============================================
