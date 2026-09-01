@@ -14,7 +14,9 @@ import {
   Sparkles,
   AlertCircle,
   GraduationCap,
+  ListChecks,
 } from 'lucide-react';
+import { QuizRunner, type Quiz } from '@/components/QuizRunner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -485,7 +487,23 @@ function SessionView({
     'idle' | 'busy' | 'done' | 'error'
   >('idle');
   const [cardMsg, setCardMsg] = useState<string | null>(null);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [quizBusy, setQuizBusy] = useState(false);
   const s = session.summary;
+
+  const makeQuiz = async () => {
+    setQuizBusy(true);
+    setCardMsg(null);
+    try {
+      const q = await apiSend<Quiz>(`/slides/${session.id}/quiz`, 'POST');
+      setQuiz(q);
+    } catch (e) {
+      setCardState('error');
+      setCardMsg((e as Error).message);
+    } finally {
+      setQuizBusy(false);
+    }
+  };
 
   const download = async (format: 'md' | 'html') => {
     setDownloading(format);
@@ -571,8 +589,30 @@ function SessionView({
             )}
             Tạo flashcards
           </Button>
+          <Button
+            onClick={makeQuiz}
+            disabled={quizBusy || !!quiz}
+            variant="outline"
+            className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20"
+          >
+            {quizBusy ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <ListChecks className="w-4 h-4 mr-2" />
+            )}
+            Tạo quiz
+          </Button>
         </div>
       </div>
+
+      {quiz && (
+        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.03] p-4">
+          <h2 className="text-sm font-semibold text-cyan-300 mb-3 flex items-center gap-2">
+            <ListChecks className="w-4 h-4" /> Quiz ôn tập
+          </h2>
+          <QuizRunner quiz={quiz} onClose={() => setQuiz(null)} />
+        </div>
+      )}
 
       {cardMsg && (
         <p
