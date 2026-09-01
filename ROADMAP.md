@@ -22,7 +22,7 @@ Dashboard/Essay/Lecture/Tutor đang hiển thị dữ liệu giả. Dùng `lib/a
 
 ### 2. Slide Summary → Flashcards & Quiz (nối Slide Summarizer vào Learning OS) ✅
 Model `Flashcard` đã liên kết `sourceSlideSessionId`. Nút **"Tạo flashcards"** trong bản tóm tắt sinh thẻ SRS từ `keyTerms` (term → definition + gloss VI), tự chống trùng. Các thẻ này vào thẳng hàng đợi ôn tập + đếm trên Dashboard.
-- ⏳ Còn lại: sinh Quiz trắc nghiệm từ bản tóm tắt slide (đã có `generateQuiz` cho lecture, mở rộng cho slide).
+- ✅ **Quiz từ slide**: `POST /slides/:id/quiz` sinh 6 câu trắc nghiệm, chấm điểm qua `/quiz/submit`. UI `QuizRunner` (chọn đáp án, nộp bài, hiện điểm + đáp án đúng + giải thích).
 
 ### 3. Xử lý bất đồng bộ bằng BullMQ (đã có hạ tầng)
 Chuyển summarization sang queue (`QueueModule` đã tồn tại). Upload trả về ngay `status: processing`, frontend poll `/slides/:id`. Cho phép PDF lớn, nhiều slide, không timeout.

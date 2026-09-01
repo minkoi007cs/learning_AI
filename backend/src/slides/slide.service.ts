@@ -14,6 +14,14 @@ import { renderSummaryHtml, renderSummaryMarkdown } from './summary-renderer';
 const MAX_TEXT_CHARS = 40000; // keep the prompt within model limits
 const MIN_TEXT_CHARS = 20; // below this there is nothing meaningful to summarize
 
+interface QuizQuestion {
+  type: string;
+  question: string;
+  options?: string[];
+  correctAnswer: string;
+  explanation: string;
+}
+
 @Injectable()
 export class SlideService {
   private readonly logger = new Logger(SlideService.name);
@@ -145,6 +153,57 @@ export class SlideService {
       `Generated ${data.length} flashcards from slide session ${sessionId}`,
     );
     return { created: data.length };
+  }
+
+  /**
+   * Generate a multiple-choice quiz from a completed session and persist it.
+   * Reuses the existing Quiz model so /quiz/submit can grade it.
+   */
+  async generateQuiz(userId: string, sessionId: string) {
+    const session = await this.prisma.slideSession.findFirst({
+      where: { id: sessionId, userId },
+    });
+    if (!session) throw new NotFoundException('Slide session not found');
+    if (session.status !== 'completed') {
+      throw new BadRequestException('This summary is not ready yet');
+    }
+
+    const context = (session.extractedText || '').slice(0, MAX_TEXT_CHARS);
+    if (context.trim().length < MIN_TEXT_CHARS) {
+      throw new BadRequestException('Not enough content to build a quiz');
+    }
+
+    const questions = await this.aiService.completeJSON<QuizQuestion[]>({
+      systemPrompt: `You are an expert quiz generator for a Vietnamese student studying English-language lecture slides.
+Create 6 multiple-choice questions that test understanding of the material.
+
+Rules:
+- Questions and options in English (the subject matter language), but you MAY add a short Vietnamese hint in parentheses when a term is hard.
+- Exactly 4 options each, labelled "A. ", "B. ", "C. ", "D. ".
+- "correctAnswer" is the letter only (e.g. "B").
+- Provide a one-sentence "explanation".
+
+Respond with a JSON array:
+[
+  { "type": "mcq", "question": "...", "options": ["A. ...","B. ...","C. ...","D. ..."], "correctAnswer": "A", "explanation": "..." }
+]`,
+      userPrompt: context,
+      temperature: 0.5,
+      maxTokens: 3000,
+    });
+
+    const quiz = await this.prisma.quiz.create({
+      data: {
+        userId,
+        title: `Quiz: ${session.title}`,
+        questions: questions as any,
+        totalQuestions: questions.length,
+      },
+    });
+    this.logger.log(
+      `Generated quiz ${quiz.id} (${questions.length} q) from slide ${sessionId}`,
+    );
+    return quiz;
   }
 
   async get(userId: string, sessionId: string) {

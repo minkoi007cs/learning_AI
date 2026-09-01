@@ -88,6 +88,12 @@ export class SlideController {
     return this.slideService.generateFlashcards(user.sub, id);
   }
 
+  @Post('slides/:id/quiz')
+  @ApiOperation({ summary: 'Generate a multiple-choice quiz from the summary' })
+  generateQuiz(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.slideService.generateQuiz(user.sub, id);
+  }
+
   @Delete('slides/:id')
   @ApiOperation({ summary: 'Delete a slide session' })
   removeSession(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
