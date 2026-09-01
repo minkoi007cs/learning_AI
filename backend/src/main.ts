@@ -68,6 +68,7 @@ All endpoints require JWT Bearer token (except /health and /auth).
     .addTag('Auth', 'Authentication & user management')
     .addTag('Essay', 'AI Essay Engine')
     .addTag('Lecture', 'Lecture Intelligence System')
+    .addTag('Slide Summarizer', 'Subjects & slide summarization (EN defs + VI glosses)')
     .addTag('AI Tutor', 'AI-powered tutoring & RAG chat')
     .addTag('Learning', 'Learning OS: flashcards, quizzes, dashboard')
     .build();

@@ -28,6 +28,8 @@ model User {
   aiContexts AIContext[]
   chatSessions ChatSession[]
   studyStats StudyStats?
+  subjects   Subject[]
+  slideSessions SlideSession[]
 
   @@map("users")
 }
@@ -187,6 +189,48 @@ model StudyStats {
   updatedAt       DateTime @updatedAt
 
   @@map("study_stats")
+}
+
+// ============================================
+// SLIDE SUMMARIZER (Subjects → Slide Sessions)
+// ============================================
+model Subject {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  color       String   @default("violet") // UI accent: violet | blue | emerald | amber | rose | cyan
+  icon        String   @default("book")    // lucide icon key
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  slideSessions SlideSession[]
+
+  @@index([userId])
+  @@map("subjects")
+}
+
+model SlideSession {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subjectId       String
+  subject         Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  title           String
+  sourceFileName  String?
+  sourceFileType  String?  // pdf | pptx | image | text
+  extractedText   String?  @db.Text // raw text pulled from the slide file
+  summary         Json?    // structured summary (overview, sections, keyTerms, ...)
+  summaryMarkdown String?  @db.Text // rendered markdown (source of truth for downloads)
+  status          String   @default("uploaded") // uploaded | processing | completed | failed
+  errorMessage    String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([subjectId])
+  @@map("slide_sessions")
 }
 
 // ============================================
