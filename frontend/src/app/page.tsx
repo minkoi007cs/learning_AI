@@ -63,6 +63,7 @@ export default function DashboardPage() {
       value: `${data?.flashcards.dueForReview ?? 0}`,
       icon: Book,
       color: 'text-blue-400',
+      href: '/review',
     },
     {
       label: 'Tổng flashcards',
@@ -130,30 +131,40 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-        {stats.map((stat, i) => (
-          <Card
-            key={i}
-            className="glass-panel border-white/5 bg-transparent shadow-xl"
-          >
-            <CardContent className="p-4 md:p-6">
-              <div className="flex items-center justify-between mb-2 md:mb-4">
-                <p className="text-xs md:text-sm font-medium text-slate-400 whitespace-nowrap overflow-hidden text-ellipsis">
-                  {stat.label}
-                </p>
-                <stat.icon
-                  className={`w-4 h-4 md:w-5 md:h-5 ${stat.color} shrink-0`}
-                />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
-                {loading ? (
-                  <Loader2 className="w-6 h-6 animate-spin text-slate-500" />
-                ) : (
-                  stat.value
-                )}
-              </h2>
-            </CardContent>
-          </Card>
-        ))}
+        {stats.map((stat, i) => {
+          const card = (
+            <Card
+              className={`glass-panel border-white/5 bg-transparent shadow-xl h-full ${
+                stat.href ? 'hover:border-violet-500/30 transition-colors' : ''
+              }`}
+            >
+              <CardContent className="p-4 md:p-6">
+                <div className="flex items-center justify-between mb-2 md:mb-4">
+                  <p className="text-xs md:text-sm font-medium text-slate-400 whitespace-nowrap overflow-hidden text-ellipsis">
+                    {stat.label}
+                  </p>
+                  <stat.icon
+                    className={`w-4 h-4 md:w-5 md:h-5 ${stat.color} shrink-0`}
+                  />
+                </div>
+                <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+                  {loading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-slate-500" />
+                  ) : (
+                    stat.value
+                  )}
+                </h2>
+              </CardContent>
+            </Card>
+          );
+          return stat.href ? (
+            <Link key={i} href={stat.href}>
+              {card}
+            </Link>
+          ) : (
+            <div key={i}>{card}</div>
+          );
+        })}
       </section>
 
       {/* Recent */}

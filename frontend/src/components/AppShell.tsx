@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   BrainCog,
   Library,
+  GraduationCap,
   LogOut,
   Loader2,
 } from 'lucide-react';
@@ -35,6 +36,7 @@ function Sidebar() {
         <NavLink href="/essay" icon={PenTool} label="Essay Engine" />
         <NavLink href="/lecture" icon={BookOpen} label="Lecture Intelligence" />
         <NavLink href="/subjects" icon={Library} label="Tóm tắt Slide" />
+        <NavLink href="/review" icon={GraduationCap} label="Ôn tập" />
         <NavLink href="/tutor" icon={Bot} label="AI Chat Tutor" />
       </nav>
 
