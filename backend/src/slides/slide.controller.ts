@@ -77,6 +77,17 @@ export class SlideController {
     return this.slideService.get(user.sub, id);
   }
 
+  @Post('slides/:id/flashcards')
+  @ApiOperation({
+    summary: 'Generate spaced-repetition flashcards from the summary key terms',
+  })
+  generateFlashcards(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.slideService.generateFlashcards(user.sub, id);
+  }
+
   @Delete('slides/:id')
   @ApiOperation({ summary: 'Delete a slide session' })
   removeSession(@CurrentUser() user: JwtPayload, @Param('id') id: string) {

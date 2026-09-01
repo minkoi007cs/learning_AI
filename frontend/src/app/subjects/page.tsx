@@ -13,6 +13,7 @@ import {
   Trash2,
   Sparkles,
   AlertCircle,
+  GraduationCap,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -480,6 +481,10 @@ function SessionView({
   onBack: () => void;
 }) {
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [cardState, setCardState] = useState<
+    'idle' | 'busy' | 'done' | 'error'
+  >('idle');
+  const [cardMsg, setCardMsg] = useState<string | null>(null);
   const s = session.summary;
 
   const download = async (format: 'md' | 'html') => {
@@ -491,6 +496,26 @@ function SessionView({
       );
     } finally {
       setDownloading(null);
+    }
+  };
+
+  const makeFlashcards = async () => {
+    setCardState('busy');
+    setCardMsg(null);
+    try {
+      const res = await apiSend<{ created: number; alreadyExists?: number }>(
+        `/slides/${session.id}/flashcards`,
+        'POST',
+      );
+      setCardState('done');
+      setCardMsg(
+        res.created > 0
+          ? `Đã tạo ${res.created} thẻ ghi nhớ 🎉`
+          : `Đã có ${res.alreadyExists} thẻ từ bản tóm tắt này`,
+      );
+    } catch (e) {
+      setCardState('error');
+      setCardMsg((e as Error).message);
     }
   };
 
@@ -533,8 +558,33 @@ function SessionView({
             )}
             In / PDF
           </Button>
+          <Button
+            onClick={makeFlashcards}
+            disabled={cardState === 'busy' || cardState === 'done'}
+            variant="outline"
+            className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+          >
+            {cardState === 'busy' ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <GraduationCap className="w-4 h-4 mr-2" />
+            )}
+            Tạo flashcards
+          </Button>
         </div>
       </div>
+
+      {cardMsg && (
+        <p
+          className={`text-sm rounded-lg px-3 py-2 ${
+            cardState === 'error'
+              ? 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
+              : 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/20'
+          }`}
+        >
+          {cardMsg}
+        </p>
+      )}
 
       {!s ? (
         <ErrorBanner message="Bản tóm tắt chưa sẵn sàng." />
