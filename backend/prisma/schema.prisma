@@ -95,6 +95,8 @@ model Flashcard {
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   sourceLectureId String?
   sourceLecture   Lecture?  @relation(fields: [sourceLectureId], references: [id], onDelete: SetNull)
+  sourceSlideSessionId String?
+  sourceSlideSession   SlideSession? @relation(fields: [sourceSlideSessionId], references: [id], onDelete: SetNull)
   question        String    @db.Text
   answer          String    @db.Text
   difficulty      String    @default("medium") // easy | medium | hard
@@ -108,6 +110,7 @@ model Flashcard {
 
   @@index([userId, nextReviewDate])
   @@index([sourceLectureId])
+  @@index([sourceSlideSessionId])
   @@map("flashcards")
 }
 
@@ -227,6 +230,8 @@ model SlideSession {
   errorMessage    String?  @db.Text
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  flashcards Flashcard[]
 
   @@index([userId])
   @@index([subjectId])

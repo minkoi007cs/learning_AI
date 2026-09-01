@@ -16,9 +16,12 @@ Nợ kỹ thuật đã biết:
 
 ### 1. Wire các trang mock vào backend thật
 Dashboard/Essay/Lecture/Tutor đang hiển thị dữ liệu giả. Dùng `lib/api.ts` + `useAuth` đã có để nối vào các endpoint sẵn có. **Đây là việc quan trọng nhất** — backend đã đủ, chỉ thiếu UI thật.
+- ✅ **Dashboard** đã nối vào `/learning/dashboard` (streak, thẻ cần ôn, tổng flashcards, điểm quiz TB, danh sách gần đây).
+- ⏳ Còn lại: Essay, Lecture, Tutor.
 
-### 2. Slide Summary → Flashcards & Quiz (nối Slide Summarizer vào Learning OS)
-Model `Flashcard` và `Quiz` đã có sẵn. Từ `keyTerms` của mỗi `SlideSession`, sinh flashcards SRS tự động (term → definition) và quiz ôn tập. Một nút "Tạo thẻ ghi nhớ từ bản tóm tắt này".
+### 2. Slide Summary → Flashcards & Quiz (nối Slide Summarizer vào Learning OS) ✅
+Model `Flashcard` đã liên kết `sourceSlideSessionId`. Nút **"Tạo flashcards"** trong bản tóm tắt sinh thẻ SRS từ `keyTerms` (term → definition + gloss VI), tự chống trùng. Các thẻ này vào thẳng hàng đợi ôn tập + đếm trên Dashboard.
+- ⏳ Còn lại: sinh Quiz trắc nghiệm từ bản tóm tắt slide (đã có `generateQuiz` cho lecture, mở rộng cho slide).
 
 ### 3. Xử lý bất đồng bộ bằng BullMQ (đã có hạ tầng)
 Chuyển summarization sang queue (`QueueModule` đã tồn tại). Upload trả về ngay `status: processing`, frontend poll `/slides/:id`. Cho phép PDF lớn, nhiều slide, không timeout.

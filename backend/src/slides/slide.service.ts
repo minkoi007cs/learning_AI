@@ -103,6 +103,50 @@ export class SlideService {
     }
   }
 
+  /**
+   * Generate spaced-repetition flashcards from a completed session's key terms.
+   * Deterministic (no extra AI call) — reuses the glossed terms already stored.
+   */
+  async generateFlashcards(userId: string, sessionId: string) {
+    const session = await this.prisma.slideSession.findFirst({
+      where: { id: sessionId, userId },
+    });
+    if (!session) throw new NotFoundException('Slide session not found');
+    if (session.status !== 'completed' || !session.summary) {
+      throw new BadRequestException('This summary is not ready yet');
+    }
+
+    const summary = session.summary as unknown as SlideSummary;
+    const terms = summary.keyTerms || [];
+    if (terms.length === 0) {
+      throw new BadRequestException(
+        'This summary has no key terms to turn into flashcards',
+      );
+    }
+
+    // Avoid duplicating cards if the user clicks twice.
+    const existing = await this.prisma.flashcard.count({
+      where: { userId, sourceSlideSessionId: sessionId },
+    });
+    if (existing > 0) {
+      return { created: 0, alreadyExists: existing };
+    }
+
+    const data = terms.map((t) => ({
+      userId,
+      sourceSlideSessionId: sessionId,
+      question: `What is "${t.term}"?`,
+      answer: `${t.definitionEn}\n\n🇻🇳 ${t.glossVi}`,
+      difficulty: 'medium',
+    }));
+
+    await this.prisma.flashcard.createMany({ data });
+    this.logger.log(
+      `Generated ${data.length} flashcards from slide session ${sessionId}`,
+    );
+    return { created: data.length };
+  }
+
   async get(userId: string, sessionId: string) {
     const session = await this.prisma.slideSession.findFirst({
       where: { id: sessionId, userId },
