@@ -15,6 +15,7 @@ import { EssayModule } from './essay/essay.module';
 import { LectureModule } from './lecture/lecture.module';
 import { LearningModule } from './learning/learning.module';
 import { TutorModule } from './tutor/tutor.module';
+import { SlidesModule } from './slides/slides.module';
 import { QueueModule } from './queue/queue.module';
 import { HealthModule } from './health/health.module';
 
@@ -75,6 +76,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     LectureModule,
     LearningModule,
     TutorModule,
+    SlidesModule,
     QueueModule,
     HealthModule,
   ],

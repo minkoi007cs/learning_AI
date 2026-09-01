@@ -94,6 +94,51 @@ export class AIService implements OnModuleInit {
   }
 
   /**
+   * Read one or more images (e.g. slide screenshots) and return extracted text/content.
+   * Uses the multimodal chat model with image inputs.
+   */
+  async completeVision(options: {
+    systemPrompt: string;
+    userPrompt: string;
+    images: Array<{ buffer: Buffer; mimeType: string }>;
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+  }): Promise<string> {
+    const model = options.model || this.primaryModel;
+
+    const imageParts: OpenAI.Chat.Completions.ChatCompletionContentPart[] =
+      options.images.map((img) => ({
+        type: 'image_url' as const,
+        image_url: {
+          url: `data:${img.mimeType};base64,${img.buffer.toString('base64')}`,
+        },
+      }));
+
+    const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+      { role: 'system', content: options.systemPrompt },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: options.userPrompt },
+          ...imageParts,
+        ],
+      },
+    ];
+
+    const response = await this.openai.chat.completions.create({
+      model,
+      messages,
+      temperature: options.temperature ?? 0.3,
+      max_tokens: options.maxTokens ?? 4096,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) throw new Error('Empty response from AI (vision)');
+    return content;
+  }
+
+  /**
    * Generate embedding for text
    */
   async generateEmbedding(text: string): Promise<AIEmbeddingResult> {

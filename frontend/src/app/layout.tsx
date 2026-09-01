@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Link from 'next/link';
-import { Bot, BookOpen, PenTool, LayoutDashboard, BrainCog } from 'lucide-react';
+import { Bot, BookOpen, PenTool, LayoutDashboard, BrainCog, Library } from 'lucide-react';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -36,6 +36,10 @@ function Sidebar() {
         <Link href="/lecture" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition-all group">
           <BookOpen className="w-5 h-5 group-hover:text-violet-400 transition-colors" />
           <span className="font-medium">Lecture Intelligence</span>
+        </Link>
+        <Link href="/subjects" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition-all group">
+          <Library className="w-5 h-5 group-hover:text-violet-400 transition-colors" />
+          <span className="font-medium">Tóm tắt Slide</span>
         </Link>
         <Link href="/tutor" className="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-300 hover:text-white hover:bg-white/5 transition-all group">
           <Bot className="w-5 h-5 group-hover:text-violet-400 transition-colors" />
@@ -71,6 +75,10 @@ function MobileNav() {
       <Link href="/lecture" className="flex flex-col items-center gap-1 text-slate-400 hover:text-violet-400 transition-colors">
         <BookOpen className="w-6 h-6" />
         <span className="text-[10px] font-medium">Lectures</span>
+      </Link>
+      <Link href="/subjects" className="flex flex-col items-center gap-1 text-slate-400 hover:text-violet-400 transition-colors">
+        <Library className="w-6 h-6" />
+        <span className="text-[10px] font-medium">Slide</span>
       </Link>
       <Link href="/tutor" className="flex flex-col items-center gap-1 text-slate-400 hover:text-violet-400 transition-colors">
         <Bot className="w-6 h-6" />
