@@ -17,6 +17,7 @@ Nợ kỹ thuật đã biết:
 ### 1. Wire các trang mock vào backend thật
 Dashboard/Essay/Lecture/Tutor đang hiển thị dữ liệu giả. Dùng `lib/api.ts` + `useAuth` đã có để nối vào các endpoint sẵn có. **Đây là việc quan trọng nhất** — backend đã đủ, chỉ thiếu UI thật.
 - ✅ **Dashboard** đã nối vào `/learning/dashboard` (streak, thẻ cần ôn, tổng flashcards, điểm quiz TB, danh sách gần đây).
+- ✅ **Màn ôn tập SRS** (`/review`) — nối `/flashcard/due` + `/flashcard/review` (SM-2), lật thẻ, đánh giá Quên/Khó/Được/Dễ, progress, empty state. Vòng lặp slide → thẻ → ôn đã khép kín.
 - ⏳ Còn lại: Essay, Lecture, Tutor.
 
 ### 2. Slide Summary → Flashcards & Quiz (nối Slide Summarizer vào Learning OS) ✅
