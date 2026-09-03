@@ -14,6 +14,21 @@
  *                               → just `migrate deploy` (applies pending).
  */
 const { execSync } = require('child_process');
+
+// Ensure DIRECT_URL is set; fallback to DATABASE_URL if unset
+if (!process.env.DIRECT_URL && process.env.DATABASE_URL) {
+  console.log('[deploy] DIRECT_URL not provided → falling back to DATABASE_URL');
+  process.env.DIRECT_URL = process.env.DATABASE_URL;
+}
+
+if (!process.env.DATABASE_URL) {
+  console.error(
+    '\n[deploy] ❌ ERROR: DATABASE_URL is not set in environment variables!\n' +
+    'Please add DATABASE_URL in Vercel Project Settings → Environment Variables.\n'
+  );
+  process.exit(1);
+}
+
 const { PrismaClient } = require('@prisma/client');
 
 const BASELINE = '0_init';
@@ -41,6 +56,7 @@ async function main() {
         );
         execSync(`npx prisma migrate resolve --applied ${BASELINE}`, {
           stdio: 'inherit',
+          env: process.env,
         });
       } else {
         console.log('[deploy] Fresh database → applying all migrations');
@@ -50,7 +66,10 @@ async function main() {
     await prisma.$disconnect();
   }
 
-  execSync('npx prisma migrate deploy', { stdio: 'inherit' });
+  execSync('npx prisma migrate deploy', {
+    stdio: 'inherit',
+    env: process.env,
+  });
 }
 
 main().catch((err) => {
