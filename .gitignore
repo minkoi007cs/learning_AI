@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+.next/
+build/
+*.tsbuildinfo
+
+# Env files (never commit secrets)
+.env
+.env.local
+.env*.local
+
+# OS / editor
+.DS_Store
+
+# Vercel
+.vercel
+
+# Agent / local orchestration state (not for deploy)
+.agentui/
+state/
