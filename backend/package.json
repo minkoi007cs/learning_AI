@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "vercel-build": "export DIRECT_URL=\"${DIRECT_URL:-$DATABASE_URL}\" && prisma generate && node prisma/deploy.js && nest build",
+    "vercel-build": "export DATABASE_URL=\"${DATABASE_URL:-${POSTGRES_PRISMA_URL:-$POSTGRES_URL}}\" && export DIRECT_URL=\"${DIRECT_URL:-${POSTGRES_URL_NON_POOLING:-$DATABASE_URL}}\" && prisma generate && node prisma/deploy.js && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",

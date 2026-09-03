@@ -15,16 +15,25 @@
  */
 const { execSync } = require('child_process');
 
-// Ensure DIRECT_URL is set; fallback to DATABASE_URL if unset
-if (!process.env.DIRECT_URL && process.env.DATABASE_URL) {
-  console.log('[deploy] DIRECT_URL not provided → falling back to DATABASE_URL');
-  process.env.DIRECT_URL = process.env.DATABASE_URL;
+// Resolve DATABASE_URL (supports standard DATABASE_URL or Supabase Vercel Integration)
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL =
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL;
+}
+
+// Resolve DIRECT_URL (supports DIRECT_URL or Supabase Vercel Integration POSTGRES_URL_NON_POOLING or fallback)
+if (!process.env.DIRECT_URL) {
+  process.env.DIRECT_URL =
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.DATABASE_URL;
 }
 
 if (!process.env.DATABASE_URL) {
   console.error(
     '\n[deploy] ❌ ERROR: DATABASE_URL is not set in environment variables!\n' +
-    'Please add DATABASE_URL in Vercel Project Settings → Environment Variables.\n'
+    'Please add DATABASE_URL in Vercel Project Settings → Environment Variables,\n' +
+    'or connect Supabase via Vercel Integrations.\n'
   );
   process.exit(1);
 }
