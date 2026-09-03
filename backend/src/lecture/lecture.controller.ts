@@ -8,6 +8,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -29,16 +30,18 @@ export class LectureController {
   constructor(private readonly lectureService: LectureService) {}
 
   @Post('upload')
-  @ApiOperation({ summary: 'Upload a lecture with optional audio file' })
+  @ApiOperation({
+    summary: 'Create a lecture from an audio file (Whisper) or pasted transcript',
+  })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('audio', {
-      limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max
+      limits: { fileSize: 25 * 1024 * 1024 }, // 25MB — Whisper API limit
       fileFilter: (_req, file, cb) => {
         if (file.mimetype.startsWith('audio/')) {
           cb(null, true);
         } else {
-          cb(new Error('Only audio files are allowed'), false);
+          cb(new BadRequestException('Only audio files are allowed'), false);
         }
       },
     }),
@@ -46,16 +49,14 @@ export class LectureController {
   async uploadLecture(
     @CurrentUser() user: JwtPayload,
     @Body() dto: UploadLectureDto,
-    @UploadedFile() file?: any,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    // In production, upload to S3/R2. For now, store locally.
-    const audioUrl = file ? `/uploads/${file.filename}` : undefined;
-    return this.lectureService.createLecture(
-      user.sub,
-      dto,
-      audioUrl,
-      file?.originalname,
-    );
+    if (!file && !dto.transcript?.trim()) {
+      throw new BadRequestException(
+        'Provide either an audio file or transcript text',
+      );
+    }
+    return this.lectureService.createLecture(user.sub, dto, file);
   }
 
   @Post('process')
