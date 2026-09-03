@@ -41,21 +41,44 @@ export class LectureService {
   async createLecture(
     userId: string,
     dto: UploadLectureDto,
-    audioUrl?: string,
-    audioFileName?: string,
+    file?: { buffer: Buffer; originalname: string },
   ) {
     const lecture = await this.prisma.lecture.create({
       data: {
         userId,
         title: dto.title,
-        audioUrl,
-        audioFileName,
-        status: audioUrl ? 'uploaded' : 'uploaded',
+        audioFileName: file?.originalname ?? null,
+        status: 'uploaded',
       },
     });
-
     this.logger.log(`Lecture created: ${lecture.id}`);
-    return lecture;
+
+    // Resolve a transcript: prefer pasted text, otherwise transcribe the audio
+    // now while its buffer is still in memory (Whisper).
+    try {
+      let transcript = dto.transcript?.trim();
+      if (!transcript && file?.buffer?.length) {
+        transcript = await this.aiService.transcribeAudio(
+          file.buffer,
+          file.originalname,
+        );
+      }
+      if (transcript) {
+        await this.prisma.lecture.update({
+          where: { id: lecture.id },
+          data: { transcript, status: 'transcribed' },
+        });
+      }
+    } catch (error) {
+      await this.prisma.lecture.update({
+        where: { id: lecture.id },
+        data: { status: 'failed' },
+      });
+      this.logger.error(`Transcription failed for lecture ${lecture.id}`);
+      throw error;
+    }
+
+    return this.prisma.lecture.findUnique({ where: { id: lecture.id } });
   }
 
   async processLecture(

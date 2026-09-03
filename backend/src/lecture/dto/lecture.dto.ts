@@ -10,6 +10,14 @@ export class UploadLectureDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Optional transcript text. If provided, skips audio transcription.',
+  })
+  @IsOptional()
+  @IsString()
+  transcript?: string;
 }
 
 export class ProcessLectureDto {
