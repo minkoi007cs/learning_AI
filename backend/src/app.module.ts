@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { BullModule } from '@nestjs/bullmq';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard } from '@nestjs/throttler';
 
@@ -16,7 +15,6 @@ import { LectureModule } from './lecture/lecture.module';
 import { LearningModule } from './learning/learning.module';
 import { TutorModule } from './tutor/tutor.module';
 import { SlidesModule } from './slides/slides.module';
-import { QueueModule } from './queue/queue.module';
 import { HealthModule } from './health/health.module';
 
 // Guards
@@ -42,30 +40,6 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
       ],
     }),
 
-    // BullMQ (Redis-backed job queue)
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const redisStr = config.get<string>('REDIS_URL', 'redis://localhost:6379');
-        try {
-          const redisUrl = new URL(redisStr);
-          return {
-            connection: {
-              host: redisUrl.hostname,
-              port: parseInt(redisUrl.port || '6379'),
-              username: redisUrl.username || undefined,
-              password: redisUrl.password || undefined,
-              tls: redisUrl.protocol === 'rediss:' ? {} : undefined,
-            },
-          };
-        } catch (error) {
-          // Fallback if URL is invalid (very unlikely unless REDIS_URL is manually corrupted)
-          return { connection: { host: 'localhost', port: 6379 } };
-        }
-      },
-    }),
-
     // Core
     PrismaModule,
     AIModule,
@@ -77,7 +51,6 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     LearningModule,
     TutorModule,
     SlidesModule,
-    QueueModule,
     HealthModule,
   ],
   providers: [
