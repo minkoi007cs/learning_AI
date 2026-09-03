@@ -22,12 +22,15 @@ export class AIService implements OnModuleInit {
   private openai!: OpenAI;
   private primaryModel!: string;
   private fallbackModel!: string;
+  private embeddingModel!: string;
 
   constructor(private readonly configService: ConfigService) {}
 
   onModuleInit(): void {
+    const baseURL = this.configService.get<string>('OPENAI_BASE_URL');
     this.openai = new OpenAI({
       apiKey: this.configService.get<string>('OPENAI_API_KEY'),
+      ...(baseURL ? { baseURL } : {}),
     });
     this.primaryModel = this.configService.get<string>(
       'OPENAI_MODEL',
@@ -37,8 +40,12 @@ export class AIService implements OnModuleInit {
       'OPENAI_FALLBACK_MODEL',
       'gpt-4.1-mini',
     );
+    this.embeddingModel = this.configService.get<string>(
+      'OPENAI_EMBEDDING_MODEL',
+      'text-embedding-3-small',
+    );
     this.logger.log(
-      `AI Service initialized: primary=${this.primaryModel}, fallback=${this.fallbackModel}`,
+      `AI Service initialized: primary=${this.primaryModel}, fallback=${this.fallbackModel}${baseURL ? `, baseURL=${baseURL}` : ''}`,
     );
   }
 
@@ -144,7 +151,7 @@ export class AIService implements OnModuleInit {
   async generateEmbedding(text: string): Promise<AIEmbeddingResult> {
     try {
       const response = await this.openai.embeddings.create({
-        model: 'text-embedding-3-small',
+        model: this.embeddingModel,
         input: text,
       });
 
