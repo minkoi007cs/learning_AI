@@ -8,6 +8,22 @@ import type { Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter, TransformInterceptor } from './common';
 
+function sanitizeDbUrl(raw?: string): string | undefined {
+  if (!raw) return raw;
+  let url = raw.trim().replace(/^["']|["']$/g, '');
+  url = url.replace(/:\[([^\]]+)\]@/, ':$1@');
+  url = url.replace(/postgres\.\[([^\]]+)\]:/, 'postgres.$1:');
+  url = url.replace(/\[([a-zA-Z0-9\.\-_]+)\]/g, '$1');
+  return url;
+}
+
+if (process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = sanitizeDbUrl(process.env.DATABASE_URL);
+}
+if (process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = sanitizeDbUrl(process.env.DIRECT_URL);
+}
+
 // Cache the express instance across warm invocations so we only
 // bootstrap Nest once per serverless container (not per request).
 let cachedApp: express.Express | null = null;

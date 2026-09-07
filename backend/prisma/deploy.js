@@ -15,6 +15,19 @@
  */
 const { execSync } = require('child_process');
 
+function sanitizeDbUrl(raw) {
+  if (!raw) return raw;
+  let url = raw.trim();
+  // Strip wrapping quotes
+  url = url.replace(/^["']|["']$/g, '');
+  // Strip accidental brackets around password or user
+  url = url.replace(/:\[([^\]]+)\]@/, ':$1@');
+  url = url.replace(/postgres\.\[([^\]]+)\]:/, 'postgres.$1:');
+  // Strip accidental brackets around host/region (not real IPv6)
+  url = url.replace(/\[([a-zA-Z0-9\.\-_]+)\]/g, '$1');
+  return url;
+}
+
 // Resolve DATABASE_URL (supports standard DATABASE_URL or Supabase Vercel Integration)
 if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL =
@@ -27,6 +40,14 @@ if (!process.env.DIRECT_URL) {
   process.env.DIRECT_URL =
     process.env.POSTGRES_URL_NON_POOLING ||
     process.env.DATABASE_URL;
+}
+
+// Sanitize URLs to remove accidental brackets or quotes that cause invalid IPv6 errors
+if (process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = sanitizeDbUrl(process.env.DATABASE_URL);
+}
+if (process.env.DIRECT_URL) {
+  process.env.DIRECT_URL = sanitizeDbUrl(process.env.DIRECT_URL);
 }
 
 if (!process.env.DATABASE_URL) {
@@ -54,27 +75,33 @@ async function tableExists(prisma, name) {
 }
 
 async function main() {
-  const prisma = new PrismaClient();
+  // Safe pre-check: if tableExists fails (e.g. pooler error), do not block migrate deploy
   try {
-    const hasMigrationsTable = await tableExists(prisma, '_prisma_migrations');
-    if (!hasMigrationsTable) {
-      const hasUsers = await tableExists(prisma, 'users');
-      if (hasUsers) {
-        console.log(
-          `[deploy] Legacy db-push database detected → baselining "${BASELINE}"`,
-        );
-        execSync(`npx prisma migrate resolve --applied ${BASELINE}`, {
-          stdio: 'inherit',
-          env: process.env,
-        });
-      } else {
-        console.log('[deploy] Fresh database → applying all migrations');
+    const prisma = new PrismaClient();
+    try {
+      const hasMigrationsTable = await tableExists(prisma, '_prisma_migrations');
+      if (!hasMigrationsTable) {
+        const hasUsers = await tableExists(prisma, 'users');
+        if (hasUsers) {
+          console.log(
+            `[deploy] Legacy db-push database detected → baselining "${BASELINE}"`,
+          );
+          execSync(`npx prisma migrate resolve --applied ${BASELINE}`, {
+            stdio: 'inherit',
+            env: process.env,
+          });
+        } else {
+          console.log('[deploy] Fresh database → applying all migrations');
+        }
       }
+    } finally {
+      await prisma.$disconnect().catch(() => {});
     }
-  } finally {
-    await prisma.$disconnect();
+  } catch (checkErr) {
+    console.warn('[deploy] Pre-check skipped (proceeding directly to migration):', checkErr.message);
   }
 
+  console.log('[deploy] Executing prisma migrate deploy...');
   execSync('npx prisma migrate deploy', {
     stdio: 'inherit',
     env: process.env,
