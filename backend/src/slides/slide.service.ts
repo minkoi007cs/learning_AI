@@ -192,16 +192,25 @@ Respond with a JSON array:
       maxTokens: 3000,
     });
 
+    if (!Array.isArray(questions) || questions.length === 0) {
+      throw new BadRequestException(
+        'AI không tạo được câu hỏi từ nội dung này. Thử lại, hoặc dùng slide có nhiều nội dung hơn.',
+      );
+    }
+
     const quiz = await this.prisma.quiz.create({
       data: {
         userId,
+        // BUG-08: gắn quiz vào nguồn để còn liệt kê và mở lại được sau này.
+        sourceSlideSessionId: session.id,
+        subjectId: session.subjectId,
         title: `Quiz: ${session.title}`,
         questions: questions as any,
         totalQuestions: questions.length,
       },
     });
     this.logger.log(
-      `Generated quiz ${quiz.id} (${questions.length} q) from slide ${sessionId}`,
+      `Đã tạo quiz ${quiz.id} (${questions.length} câu) từ slide ${sessionId}`,
     );
     return quiz;
   }

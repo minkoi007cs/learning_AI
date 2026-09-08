@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma';
 import { AIService } from '../ai';
 import {
@@ -65,7 +70,18 @@ export class LearningService {
       },
       orderBy: { nextReviewDate: 'asc' },
       take: limit,
-      include: { sourceLecture: { select: { title: true } } },
+      // BUG-23: phần lớn thẻ đến từ slide chứ không phải bài giảng. Thiếu quan
+      // hệ này thì màn hình ôn tập không hiện được nguồn của hầu hết thẻ.
+      include: {
+        sourceLecture: { select: { title: true } },
+        sourceSlideSession: {
+          select: {
+            id: true,
+            title: true,
+            subject: { select: { id: true, name: true, color: true } },
+          },
+        },
+      },
     });
   }
 
@@ -78,19 +94,30 @@ export class LearningService {
       where: { id: dto.quizId, userId },
     });
 
-    if (!quiz) throw new NotFoundException('Quiz not found');
+    if (!quiz) throw new NotFoundException('Không tìm thấy bài quiz này');
 
-    const questions = quiz.questions as Array<{
+    const questions = (quiz.questions as Array<{
       type: string;
       question: string;
       correctAnswer: string;
-    }>;
+    }> | null) ?? [];
+
+    // BUG-17: bản cũ chia thẳng cho questions.length. Quiz rỗng (do AI trả về
+    // mảng trống) → NaN → Prisma ném lỗi khi ghi cột Int.
+    if (questions.length === 0) {
+      throw new BadRequestException(
+        'Bài quiz này không có câu hỏi nào. Hãy tạo lại.',
+      );
+    }
 
     let correctCount = 0;
     const results = dto.answers.map((answer) => {
       const question = questions[answer.questionIndex];
-      const isCorrect =
-        question?.correctAnswer?.toLowerCase() === answer.answer?.toLowerCase();
+      const isCorrect = isAnswerCorrect(
+        question?.type,
+        question?.correctAnswer,
+        answer.answer,
+      );
       if (isCorrect) correctCount++;
       return {
         questionIndex: answer.questionIndex,
@@ -115,6 +142,68 @@ export class LearningService {
     await this.updateStudyStats(userId);
 
     return { ...updated, results };
+  }
+
+  /**
+   * BUG-08: trước đây quiz tạo xong là mất luôn — không có endpoint nào mở lại
+   * được. Đóng cửa sổ QuizRunner là bài quiz biến mất vĩnh viễn.
+   */
+  async listQuizzes(
+    userId: string,
+    opts: { page?: number; limit?: number; subjectId?: string } = {},
+  ) {
+    const page = opts.page ?? 1;
+    const limit = opts.limit ?? 20;
+
+    const where = {
+      userId,
+      ...(opts.subjectId ? { subjectId: opts.subjectId } : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.quiz.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          score: true,
+          status: true,
+          totalQuestions: true,
+          correctAnswers: true,
+          createdAt: true,
+          sourceLectureId: true,
+          sourceSlideSessionId: true,
+          subjectId: true,
+        },
+      }),
+      this.prisma.quiz.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async getQuiz(userId: string, quizId: string) {
+    const quiz = await this.prisma.quiz.findFirst({
+      where: { id: quizId, userId },
+    });
+    if (!quiz) throw new NotFoundException('Không tìm thấy bài quiz này');
+    return quiz;
+  }
+
+  async deleteQuiz(userId: string, quizId: string) {
+    const quiz = await this.prisma.quiz.findFirst({
+      where: { id: quizId, userId },
+      select: { id: true },
+    });
+    if (!quiz) throw new NotFoundException('Không tìm thấy bài quiz này');
+    await this.prisma.quiz.delete({ where: { id: quizId } });
+    return { success: true };
   }
 
   async generateQuiz(userId: string, dto: GenerateQuizDto) {
@@ -383,4 +472,80 @@ Respond with JSON:
       },
     });
   }
+}
+
+// ============================================================
+// CHẤM ĐIỂM
+// ============================================================
+
+/**
+ * Chuẩn hoá đáp án để so sánh: bỏ dấu tiếng Việt, dấu câu, viết thường,
+ * gộp khoảng trắng. Nhờ vậy "Đạo hàm" == "dao ham" == "Đạo  hàm.".
+ */
+function normalizeAnswer(text: string): string {
+  return (text || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '') // bỏ dấu thanh
+    .replace(/đ/gi, 'd')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Tỉ lệ từ trùng nhau giữa hai câu (hệ số Dice trên tập từ). */
+function tokenOverlap(a: string, b: string): number {
+  const ta = new Set(a.split(' ').filter(Boolean));
+  const tb = new Set(b.split(' ').filter(Boolean));
+  if (ta.size === 0 || tb.size === 0) return 0;
+
+  let shared = 0;
+  for (const t of ta) if (tb.has(t)) shared++;
+  return (2 * shared) / (ta.size + tb.size);
+}
+
+/**
+ * BUG-16: bản cũ so sánh chuỗi chính xác cho MỌI loại câu hỏi, nên câu tự luận
+ * gần như luôn bị chấm sai — chỉ cần thừa một dấu chấm là mất điểm.
+ *
+ * Nay tách hai đường:
+ *   - Trắc nghiệm: chỉ so chữ cái đáp án (A/B/C/D), chấp nhận người dùng gửi
+ *     cả "B" lẫn "B. Nội dung đáp án".
+ *   - Tự luận: chuẩn hoá rồi so khoan dung — khớp hoàn toàn, chứa nhau, hoặc
+ *     trùng ≥ 80% số từ.
+ *
+ * Ghi chú: chấm tự luận bằng AI (chính xác hơn nhiều) nằm ở Giai đoạn 1 trong
+ * tech.md. Đây là bản tạm đủ dùng, tốt hơn hẳn so sánh chuỗi thô.
+ */
+export function isAnswerCorrect(
+  type: string | undefined,
+  correctAnswer: string | undefined,
+  userAnswer: string | undefined,
+): boolean {
+  if (!correctAnswer || userAnswer === undefined || userAnswer === null) {
+    return false;
+  }
+
+  const isMcq = (type ?? 'mcq').toLowerCase().includes('mcq');
+
+  if (isMcq) {
+    // Lấy chữ cái đầu tiên có nghĩa: "B" hoặc "B. Đáp án" đều ra "B".
+    const letterOf = (s: string) => {
+      const m = /^\s*([A-Da-d])\b/.exec(s.trim());
+      return m ? m[1].toUpperCase() : s.trim().toUpperCase();
+    };
+    return letterOf(correctAnswer) === letterOf(userAnswer);
+  }
+
+  const expected = normalizeAnswer(correctAnswer);
+  const given = normalizeAnswer(userAnswer);
+  if (!expected || !given) return false;
+
+  if (expected === given) return true;
+  if (expected.includes(given) && given.length >= expected.length * 0.6) {
+    return true;
+  }
+  if (given.includes(expected)) return true;
+
+  return tokenOverlap(expected, given) >= 0.8;
 }

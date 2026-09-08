@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Loader2, CheckCircle2, XCircle, Trophy } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { apiSend } from '@/lib/api';
 
 export interface QuizQuestion {
@@ -37,6 +36,18 @@ function letterOf(option: string): string {
   return option.trim().charAt(0).toUpperCase();
 }
 
+/**
+ * BUG-15: bản cũ chỉ vẽ được câu trắc nghiệm. Câu tự luận (`short_answer`)
+ * không có `options` nên không hiện gì cả — mà điều kiện nộp bài lại đòi mọi
+ * câu phải có đáp án, nên người dùng kẹt cứng: không trả lời được, không nộp
+ * được. Giờ nhận diện theo loại câu hỏi và vẽ đúng dạng nhập liệu.
+ */
+function isMcq(q: QuizQuestion): boolean {
+  const type = (q.type ?? '').toLowerCase();
+  if (type.includes('short') || type.includes('essay')) return false;
+  return Array.isArray(q.options) && q.options.length > 0;
+}
+
 export function QuizRunner({
   quiz,
   onClose,
@@ -49,7 +60,10 @@ export function QuizRunner({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const allAnswered = quiz.questions.every((_, i) => answers[i] !== undefined);
+  const answeredCount = quiz.questions.filter(
+    (_, i) => (answers[i] ?? '').trim() !== '',
+  ).length;
+  const allAnswered = answeredCount === quiz.questions.length;
 
   const submit = async () => {
     setSubmitting(true);
@@ -77,73 +91,129 @@ export function QuizRunner({
   return (
     <div className="space-y-4">
       {graded && (
-        <div className="flex items-center gap-3 rounded-xl bg-violet-500/10 border border-violet-500/20 p-4">
-          <Trophy className="w-8 h-8 text-amber-400 shrink-0" />
-          <div>
-            <p className="text-lg font-bold text-white">
-              {graded.score}% — {graded.correctAnswers}/{quiz.questions.length}{' '}
-              câu đúng
-            </p>
-            <p className="text-xs text-slate-400">
+        <div className="bv-metrics grid-cols-2">
+          <div className="bv-metric">
+            <div className="bv-metric-k">Điểm</div>
+            <div className="bv-metric-v text-ink">{graded.score}%</div>
+            <div className="bv-metric-s flex items-center gap-1.5">
+              <Trophy className="h-3.5 w-3.5 shrink-0 text-ochre" />
               {graded.score >= 80
                 ? 'Xuất sắc!'
                 : graded.score >= 50
                   ? 'Khá tốt, ôn thêm nhé.'
                   : 'Cần ôn lại phần này.'}
-            </p>
+            </div>
+          </div>
+          <div className="bv-metric">
+            <div className="bv-metric-k">Câu đúng</div>
+            <div className="bv-metric-v text-verdigris">
+              {graded.correctAnswers}/{quiz.questions.length}
+            </div>
+            <div className="bv-metric-s">Tổng {quiz.questions.length} câu</div>
           </div>
         </div>
       )}
 
+      {!graded && (
+        <p className="font-data text-[11px] tabular-nums text-graphite">
+          Đã trả lời {answeredCount}/{quiz.questions.length} câu
+        </p>
+      )}
+
       {quiz.questions.map((q, i) => {
         const res = resultFor(i);
+        const mcq = isMcq(q);
+
         return (
-          <div
-            key={i}
-            className="rounded-xl glass-panel border border-white/10 p-4 space-y-3"
-          >
-            <p className="font-medium text-white text-sm md:text-base">
+          <div key={i} className="bv-sheet-flat space-y-3 p-4">
+            <p className="text-sm font-medium text-ink md:text-[15px]">
               {i + 1}. {q.question}
+              {!mcq && (
+                <span className="bv-chip bv-chip-info ml-2 align-middle">
+                  Tự luận
+                </span>
+              )}
             </p>
-            <div className="space-y-2">
-              {(q.options || []).map((opt) => {
-                const letter = letterOf(opt);
-                const selected = answers[i] === letter;
-                const isCorrectOpt =
-                  graded && letter === q.correctAnswer.toUpperCase();
-                const isWrongPick =
-                  graded && selected && !res?.isCorrect;
-                return (
-                  <button
-                    key={letter}
-                    disabled={!!graded}
-                    onClick={() =>
-                      setAnswers((a) => ({ ...a, [i]: letter }))
-                    }
-                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${
-                      isCorrectOpt
-                        ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-200'
-                        : isWrongPick
-                          ? 'border-rose-500/50 bg-rose-500/10 text-rose-200'
-                          : selected
-                            ? 'border-violet-500/50 bg-violet-500/10 text-white'
-                            : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10'
+
+            {mcq ? (
+              <div className="space-y-2">
+                {(q.options || []).map((opt) => {
+                  const letter = letterOf(opt);
+                  const selected = answers[i] === letter;
+                  const isCorrectOpt =
+                    graded && letter === q.correctAnswer.toUpperCase();
+                  const isWrongPick = graded && selected && !res?.isCorrect;
+                  return (
+                    <button
+                      key={letter}
+                      disabled={!!graded}
+                      onClick={() => setAnswers((a) => ({ ...a, [i]: letter }))}
+                      className={`flex w-full min-h-[44px] items-center rounded-md border px-3 py-2 text-left text-sm transition-colors ${
+                        isCorrectOpt
+                          ? 'border-verdigris bg-verdigris-wash text-verdigris'
+                          : isWrongPick
+                            ? 'border-annotate bg-annotate-wash text-annotate'
+                            : selected
+                              ? 'border-blueprint bg-blueprint-wash text-blueprint'
+                              : 'border-rule bg-sheet text-ink hover:bg-sheet-alt'
+                      }`}
+                    >
+                      <span className="min-w-0">{opt}</span>
+                      {isCorrectOpt && (
+                        <CheckCircle2 className="ml-2 h-4 w-4 shrink-0 text-verdigris" />
+                      )}
+                      {isWrongPick && (
+                        <XCircle className="ml-2 h-4 w-4 shrink-0 text-annotate" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <textarea
+                  value={answers[i] ?? ''}
+                  disabled={!!graded}
+                  onChange={(e) =>
+                    setAnswers((a) => ({ ...a, [i]: e.target.value }))
+                  }
+                  placeholder="Nhập câu trả lời của bạn..."
+                  className={`bv-input min-h-[80px] resize-y text-sm ${
+                    graded
+                      ? res?.isCorrect
+                        ? 'border-verdigris'
+                        : 'border-annotate'
+                      : ''
+                  }`}
+                />
+                {graded && (
+                  <div
+                    className={`rounded-md border px-3 py-2 text-xs ${
+                      res?.isCorrect
+                        ? 'border-verdigris bg-verdigris-wash text-verdigris'
+                        : 'border-annotate bg-annotate-wash text-annotate'
                     }`}
                   >
-                    {opt}
-                    {isCorrectOpt && (
-                      <CheckCircle2 className="w-4 h-4 inline ml-2 text-emerald-400" />
+                    {res?.isCorrect ? (
+                      <>
+                        <CheckCircle2 className="mr-1 inline h-3.5 w-3.5" />
+                        Chính xác
+                      </>
+                    ) : (
+                      <>
+                        <XCircle className="mr-1 inline h-3.5 w-3.5" />
+                        Đáp án đúng:{' '}
+                        <span className="font-medium">{q.correctAnswer}</span>
+                      </>
                     )}
-                    {isWrongPick && (
-                      <XCircle className="w-4 h-4 inline ml-2 text-rose-400" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {graded && q.explanation && (
-              <p className="text-xs text-slate-400 border-t border-white/10 pt-2">
-                💡 {q.explanation}
+              <p className="border-t border-dashed border-rule pt-2.5 font-read text-[13.5px] leading-relaxed text-graphite">
+                {q.explanation}
               </p>
             )}
           </div>
@@ -151,29 +221,25 @@ export function QuizRunner({
       })}
 
       {error && (
-        <p className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+        <p className="bv-callout" role="alert">
           {error}
         </p>
       )}
 
       <div className="flex gap-2">
         {!graded ? (
-          <Button
+          <button
             onClick={submit}
             disabled={!allAnswered || submitting}
-            className="bg-violet-600 hover:bg-violet-500 text-white"
+            className="bv-btn bv-btn-primary"
           >
-            {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             Nộp bài
-          </Button>
+          </button>
         ) : null}
-        <Button
-          onClick={onClose}
-          variant="outline"
-          className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-        >
+        <button onClick={onClose} className="bv-btn">
           Đóng
-        </Button>
+        </button>
       </div>
     </div>
   );

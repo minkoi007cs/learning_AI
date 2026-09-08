@@ -2,16 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  BrainCircuit,
-  Book,
-  PenBox,
-  Trophy,
-  Sparkles,
-  Loader2,
-  Layers,
-} from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -38,6 +29,28 @@ interface DashboardData {
   quizzes: { averageScore: number };
 }
 
+/**
+ * Trạng thái từ máy chủ là chuỗi tiếng Anh (uploaded | processing | …).
+ * Bảng này CHỈ đổi cách hiển thị: nhãn tiếng Việt + màu chip theo ý nghĩa
+ * (xong = verdigris, đang chạy = ochre, chờ = blueprint, lỗi = annotate).
+ * Trạng thái lạ thì giữ nguyên chuỗi gốc để không giấu thông tin.
+ */
+const STATUS_META: Record<string, { label: string; chip: string }> = {
+  uploaded: { label: 'Đã tải lên', chip: 'bv-chip-info' },
+  queued: { label: 'Đang chờ', chip: 'bv-chip-info' },
+  pending: { label: 'Chờ xử lý', chip: 'bv-chip-info' },
+  transcribing: { label: 'Đang bóc băng', chip: 'bv-chip-work' },
+  processing: { label: 'Đang xử lý', chip: 'bv-chip-work' },
+  generating: { label: 'Đang tạo', chip: 'bv-chip-work' },
+  in_progress: { label: 'Đang làm', chip: 'bv-chip-work' },
+  completed: { label: 'Hoàn tất', chip: 'bv-chip-done' },
+  failed: { label: 'Lỗi', chip: 'bv-chip-todo' },
+};
+
+function statusMeta(status: string) {
+  return STATUS_META[status] ?? { label: status, chip: 'bv-chip-info' };
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -54,181 +67,166 @@ export default function DashboardPage() {
   const stats = [
     {
       label: 'Chuỗi ngày học',
-      value: data?.stats?.streakDays ? `🔥 ${data.stats.streakDays}` : '0',
-      icon: Trophy,
-      color: 'text-amber-400',
+      value: `${data?.stats?.streakDays ?? 0}`,
+      sub: data?.stats?.longestStreak
+        ? `Kỷ lục ${data.stats.longestStreak} ngày`
+        : 'Bắt đầu học',
+      accent: false,
+      href: undefined as string | undefined,
     },
     {
       label: 'Thẻ cần ôn',
       value: `${data?.flashcards.dueForReview ?? 0}`,
-      icon: Book,
-      color: 'text-blue-400',
+      sub: 'Ôn ngay hôm nay',
+      accent: true,
       href: '/review',
     },
     {
       label: 'Tổng flashcards',
       value: `${data?.flashcards.total ?? 0}`,
-      icon: Layers,
-      color: 'text-fuchsia-400',
+      sub: undefined,
+      accent: false,
+      href: undefined as string | undefined,
     },
     {
       label: 'Điểm quiz TB',
       value: `${Math.round(data?.quizzes.averageScore ?? 0)}%`,
-      icon: BrainCircuit,
-      color: 'text-emerald-400',
+      sub: undefined,
+      accent: false,
+      href: undefined as string | undefined,
     },
   ];
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8 md:space-y-12 mt-2 md:mt-0">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-2xl md:rounded-3xl glass border border-white/10 p-6 md:p-10 flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="absolute top-0 right-0 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-violet-600/20 blur-[80px] md:blur-[120px] rounded-full mix-blend-screen pointer-events-none" />
-        <div className="relative z-10 max-w-2xl text-center md:text-left">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs md:text-sm font-medium text-violet-300 mb-4 md:mb-6 backdrop-blur-md">
-            <Sparkles className="w-3 h-3 md:w-4 md:h-4" /> Chào {user?.name || 'bạn'}
-          </div>
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-3 md:mb-4 leading-tight">
-            Sẵn sàng <span className="text-gradient">tăng tốc</span> việc học?
-          </h1>
-          <p className="text-sm sm:text-base md:text-lg text-slate-300 mb-6 md:mb-8 leading-relaxed max-w-md mx-auto md:mx-0">
+    <div className="mx-auto w-full max-w-5xl px-5 py-7 md:px-8">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b-2 border-ink pb-4">
+        <div>
+          <p className="bv-eyebrow mb-1.5">Mã bản vẽ · A-00</p>
+          <h1 className="text-2xl text-ink">Bảng điều khiển</h1>
+          <p className="mt-1 max-w-[60ch] text-sm text-graphite">
+            Chào {user?.name || 'bạn'}.{' '}
             {data
               ? `Bạn có ${data.flashcards.dueForReview} thẻ cần ôn hôm nay và chuỗi ${data.stats?.streakDays ?? 0} ngày học liên tục.`
               : 'AI Study OS — trợ lý học tập của bạn.'}
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center md:justify-start">
-            <Link
-              href="/subjects"
-              className="w-full sm:w-auto px-6 py-3.5 md:py-3 rounded-xl font-semibold bg-white text-black hover:bg-slate-200 transition-colors text-center"
-            >
-              Tóm tắt Slide
-            </Link>
-            <Link
-              href="/lecture"
-              className="w-full sm:w-auto px-6 py-3.5 md:py-3 rounded-xl font-semibold glass border border-white/10 text-white hover:bg-white/10 transition-colors text-center"
-            >
-              Tải bài giảng
-            </Link>
-          </div>
         </div>
-        <div className="relative z-10 hidden md:block">
-          <div className="w-64 h-64 rounded-2xl glass-panel p-6 border-violet-500/30 flex flex-col items-center justify-center relative animate-[float_6s_ease-in-out_infinite]">
-            <BrainCircuit className="w-24 h-24 text-violet-400 mb-4 drop-shadow-[0_0_15px_rgba(167,139,250,0.5)]" />
-            <div className="text-center font-bold text-xl text-white">
-              {data?.stats?.longestStreak
-                ? `Kỷ lục ${data.stats.longestStreak} ngày`
-                : 'Bắt đầu học'}
-            </div>
-          </div>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Link href="/lecture" className="bv-btn min-h-[44px]">
+            Tải bài giảng
+          </Link>
+          <Link href="/subjects" className="bv-btn bv-btn-primary min-h-[44px]">
+            Tóm tắt Slide
+          </Link>
         </div>
-      </section>
+      </header>
 
       {error && (
-        <p className="text-sm text-rose-400 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-2">
+        <p className="bv-callout mb-6" role="alert">
           {error}
         </p>
       )}
 
-      {/* Stats */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+      {/* Bảng chỉ số */}
+      <section className="bv-metrics grid-cols-2 md:grid-cols-4" aria-label="Chỉ số học tập">
         {stats.map((stat, i) => {
-          const card = (
-            <Card
-              className={`glass-panel border-white/5 bg-transparent shadow-xl h-full ${
-                stat.href ? 'hover:border-violet-500/30 transition-colors' : ''
-              }`}
-            >
-              <CardContent className="p-4 md:p-6">
-                <div className="flex items-center justify-between mb-2 md:mb-4">
-                  <p className="text-xs md:text-sm font-medium text-slate-400 whitespace-nowrap overflow-hidden text-ellipsis">
-                    {stat.label}
-                  </p>
-                  <stat.icon
-                    className={`w-4 h-4 md:w-5 md:h-5 ${stat.color} shrink-0`}
-                  />
-                </div>
-                <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
-                  {loading ? (
-                    <Loader2 className="w-6 h-6 animate-spin text-slate-500" />
-                  ) : (
-                    stat.value
-                  )}
-                </h2>
-              </CardContent>
-            </Card>
+          const body = (
+            <>
+              <p className="bv-metric-k">{stat.label}</p>
+              <p
+                className={`bv-metric-v font-data tabular-nums ${
+                  stat.accent ? 'text-annotate' : 'text-ink'
+                }`}
+              >
+                {loading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-graphite-soft" />
+                ) : (
+                  stat.value
+                )}
+              </p>
+              {stat.sub && (
+                <p className={`bv-metric-s ${stat.accent ? 'text-annotate' : ''}`}>
+                  {stat.sub}
+                </p>
+              )}
+            </>
           );
           return stat.href ? (
-            <Link key={i} href={stat.href}>
-              {card}
+            <Link
+              key={i}
+              href={stat.href}
+              className="bv-metric block transition-colors hover:bg-sheet-alt"
+            >
+              {body}
             </Link>
           ) : (
-            <div key={i}>{card}</div>
+            <div key={i} className="bv-metric">
+              {body}
+            </div>
           );
         })}
       </section>
 
-      {/* Recent */}
-      <section className="grid md:grid-cols-2 gap-6 md:gap-8">
+      {/* Danh mục gần đây */}
+      <section className="mt-8 grid gap-6 md:grid-cols-2 md:gap-8">
         <div>
-          <h3 className="text-lg md:text-xl font-semibold mb-4 md:mb-6 text-white flex items-center gap-2">
-            <Book className="w-4 h-4 md:w-5 md:h-5 text-blue-400" /> Bài giảng gần đây
-          </h3>
-          <div className="space-y-3 md:space-y-4">
-            {loading ? (
-              <SkeletonRows />
-            ) : data && data.recentLectures.length > 0 ? (
-              data.recentLectures.map((l) => (
-                <div
-                  key={l.id}
-                  className="flex items-center justify-between p-4 rounded-xl glass-panel border-white/5 gap-4"
-                >
-                  <div className="min-w-0">
-                    <h4 className="font-semibold text-slate-200 text-sm md:text-base truncate">
-                      {l.title}
-                    </h4>
-                    <p className="text-xs md:text-sm text-slate-400 mt-1 capitalize">
-                      {l.status}
-                    </p>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <EmptyRow text="Chưa có bài giảng nào." />
-            )}
+          <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-rule pb-2">
+            <h2 className="text-[15px] font-semibold text-ink">Bài giảng gần đây</h2>
+            <span className="bv-eyebrow">A-04</span>
           </div>
-        </div>
-        <div>
-          <h3 className="text-lg md:text-xl font-semibold mb-4 md:mb-6 text-white flex items-center gap-2">
-            <PenBox className="w-4 h-4 md:w-5 md:h-5 text-fuchsia-400" /> Bài luận gần đây
-          </h3>
-          <div className="space-y-3 md:space-y-4">
-            {loading ? (
-              <SkeletonRows />
-            ) : data && data.recentEssays.length > 0 ? (
-              data.recentEssays.map((e) => (
-                <div
-                  key={e.id}
-                  className="flex items-center justify-between p-4 rounded-xl glass-panel border-white/5 gap-4"
-                >
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-slate-200 text-sm md:text-base truncate">
-                      {e.prompt}
-                    </h4>
-                    <p className="text-xs md:text-sm text-slate-400 mt-1 capitalize truncate">
-                      {e.status}
-                    </p>
-                  </div>
-                  {e.scorePrediction != null && (
-                    <div className="text-emerald-400 font-bold bg-emerald-400/10 px-2 md:px-3 py-1 rounded-full text-xs border border-emerald-400/20 shrink-0">
-                      {e.scorePrediction}
+          {loading ? (
+            <SkeletonRows />
+          ) : data && data.recentLectures.length > 0 ? (
+            <div className="bv-rows">
+              {data.recentLectures.map((l) => {
+                const meta = statusMeta(l.status);
+                return (
+                  <div key={l.id} className="bv-row">
+                    <span className="self-stretch bg-rule" aria-hidden />
+                    <div className="min-w-0 py-3">
+                      <p className="bv-row-title truncate">{l.title}</p>
                     </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <EmptyRow text="Chưa có bài luận nào." />
-            )}
+                    <span className={`bv-chip ${meta.chip} mr-3.5`}>{meta.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyRow text="Chưa có bài giảng nào." />
+          )}
+        </div>
+
+        <div>
+          <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-rule pb-2">
+            <h2 className="text-[15px] font-semibold text-ink">Bài luận gần đây</h2>
+            <span className="bv-eyebrow">A-05</span>
           </div>
+          {loading ? (
+            <SkeletonRows />
+          ) : data && data.recentEssays.length > 0 ? (
+            <div className="bv-rows">
+              {data.recentEssays.map((e) => {
+                const meta = statusMeta(e.status);
+                return (
+                  <div key={e.id} className="bv-row">
+                    <span className="self-stretch bg-rule" aria-hidden />
+                    <div className="min-w-0 py-3">
+                      <p className="bv-row-title truncate">{e.prompt}</p>
+                    </div>
+                    <div className="mr-3.5 flex shrink-0 items-center gap-1.5">
+                      <span className={`bv-chip ${meta.chip}`}>{meta.label}</span>
+                      {e.scorePrediction != null && (
+                        <span className="bv-chip bv-chip-info tabular-nums">
+                          {e.scorePrediction}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyRow text="Chưa có bài luận nào." />
+          )}
         </div>
       </section>
     </div>
@@ -237,21 +235,20 @@ export default function DashboardPage() {
 
 function SkeletonRows() {
   return (
-    <>
+    <div className="bv-rows">
       {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="h-16 rounded-xl glass-panel border-white/5 animate-pulse bg-white/5"
-        />
+        <div key={i} className="bv-row">
+          <span className="self-stretch bg-rule" aria-hidden />
+          <div className="py-4">
+            <div className="h-3 w-40 max-w-full animate-pulse rounded-sm bg-sheet-alt" />
+          </div>
+          <span />
+        </div>
       ))}
-    </>
+    </div>
   );
 }
 
 function EmptyRow({ text }: { text: string }) {
-  return (
-    <p className="text-sm text-slate-500 py-6 text-center rounded-xl glass-panel border-white/5">
-      {text}
-    </p>
-  );
+  return <p className="bv-empty text-sm">{text}</p>;
 }

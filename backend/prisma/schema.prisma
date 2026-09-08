@@ -127,6 +127,12 @@ model Quiz {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sourceLectureId String?
   sourceLecture   Lecture?  @relation(fields: [sourceLectureId], references: [id], onDelete: SetNull)
+  // BUG-08: quiz sinh từ slide trước đây không có đường quay về nguồn nên đóng
+  // cửa sổ là mất luôn. Hai quan hệ dưới cho phép liệt kê lại và mở lại.
+  sourceSlideSessionId String?
+  sourceSlideSession   SlideSession? @relation(fields: [sourceSlideSessionId], references: [id], onDelete: SetNull)
+  subjectId       String?
+  subject         Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   title           String?
   questions       Json     // Array of quiz questions with answers
   score           Int?     // Percentage score
@@ -139,6 +145,8 @@ model Quiz {
 
   @@index([userId])
   @@index([sourceLectureId])
+  @@index([sourceSlideSessionId])
+  @@index([subjectId])
   @@map("quizzes")
 }
 
@@ -213,6 +221,7 @@ model Subject {
   updatedAt   DateTime @updatedAt
 
   slideSessions SlideSession[]
+  quizzes       Quiz[]
 
   @@index([userId])
   @@map("subjects")
@@ -236,6 +245,7 @@ model SlideSession {
   updatedAt       DateTime @updatedAt
 
   flashcards Flashcard[]
+  quizzes    Quiz[]
 
   @@index([userId])
   @@index([subjectId])

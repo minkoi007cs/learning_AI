@@ -2,30 +2,33 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  Library,
   Plus,
   UploadCloud,
   FileText,
   Download,
   Loader2,
   ArrowLeft,
-  BookOpen,
   Trash2,
-  Sparkles,
   AlertCircle,
   GraduationCap,
   ListChecks,
 } from 'lucide-react';
 import { QuizRunner, type Quiz } from '@/components/QuizRunner';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   apiGet,
   apiSend,
   apiUpload,
   apiDownload,
 } from '@/lib/api';
+
+/**
+ * A-01 · Môn học & bản tóm tắt slide — hệ "Bản vẽ" (DESIGN.md).
+ *
+ * Bản tóm tắt được trình bày hai làn: cột chính là phần vẽ (định nghĩa và
+ * thuật ngữ GIỮ NGUYÊN TIẾNG ANH), lề phải là ghi chú bút chì đỏ của kiến
+ * trúc sư (chú thích tiếng Việt). Đó là lõi giá trị sản phẩm nên nó phải
+ * nhìn thấy ngay, không giấu sau nút bấm.
+ */
 
 interface Subject {
   id: string;
@@ -78,13 +81,21 @@ interface SlideSession {
   subject?: { id: string; name: string; color: string };
 }
 
+/**
+ * Màu nhận diện môn học.
+ *
+ * KHOÁ giữ nguyên (violet/blue/emerald/…) vì đó là giá trị gửi lên API; chỉ
+ * GIÁ TRỊ đổi từ dải màu chuyển sắc sang màu token để đúng ở cả sáng lẫn tối.
+ * Đây chỉ là vạch chỉ dày 3px ở đầu hàng, nên tránh dùng `annotate` — đỏ đất
+ * chỉ dành cho chú thích tiếng Việt và việc cần làm ngay (DESIGN.md §2).
+ */
 const COLORS: Record<string, string> = {
-  violet: 'from-violet-600 to-fuchsia-600',
-  blue: 'from-blue-600 to-cyan-600',
-  emerald: 'from-emerald-600 to-teal-600',
-  amber: 'from-amber-500 to-orange-600',
-  rose: 'from-rose-600 to-pink-600',
-  cyan: 'from-cyan-600 to-sky-600',
+  violet: 'bg-blueprint',
+  blue: 'bg-ink',
+  emerald: 'bg-verdigris',
+  amber: 'bg-ochre',
+  rose: 'bg-graphite',
+  cyan: 'bg-graphite-soft',
 };
 const COLOR_KEYS = Object.keys(COLORS);
 
@@ -156,60 +167,54 @@ export default function SubjectsPage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8 mt-2 md:mt-0">
-      <header className="flex items-center gap-3 md:gap-4">
-        <div className="p-2 md:p-3 bg-violet-500/20 rounded-xl border border-violet-500/30 shrink-0">
-          <Library className="w-6 h-6 md:w-8 md:h-8 text-violet-400" />
-        </div>
+    <div className="mx-auto w-full max-w-5xl px-5 py-7 md:px-8">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b-2 border-ink pb-4">
         <div>
-          <h1 className="text-xl md:text-3xl font-bold text-white tracking-tight">
-            Tóm tắt Slide
-          </h1>
-          <p className="text-xs md:text-sm text-slate-400 mt-0.5 md:mt-1">
+          <p className="bv-eyebrow mb-1.5">Mã bản vẽ · A-01</p>
+          <h1 className="text-2xl text-ink">Tóm tắt Slide</h1>
+          <p className="mt-1 max-w-[60ch] text-sm text-graphite">
             Chọn môn học, tải slide của thầy — AI tóm tắt (định nghĩa tiếng Anh,
             chú thích tiếng Việt) để tải về hoặc in.
           </p>
         </div>
+        <CreateSubject onCreated={loadSubjects} />
       </header>
 
       {error && <ErrorBanner message={error} />}
 
-      <CreateSubject onCreated={loadSubjects} />
-
       {loading ? (
-        <div className="flex items-center gap-2 text-slate-400 text-sm py-10 justify-center">
-          <Loader2 className="w-4 h-4 animate-spin" /> Đang tải môn học...
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-graphite">
+          <Loader2 className="h-4 w-4 animate-spin" /> Đang tải môn học...
         </div>
       ) : subjects.length === 0 ? (
-        <p className="text-center text-slate-500 text-sm py-10">
+        <p className="bv-empty text-sm">
           Chưa có môn học nào. Tạo môn học đầu tiên phía trên.
         </p>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+        <div className="bv-rows mt-5">
           {subjects.map((s) => (
             <button
               key={s.id}
               onClick={() => openSubject(s.id)}
-              className="text-left glass-panel border border-white/10 rounded-xl p-4 md:p-5 hover:border-violet-500/40 hover:bg-white/5 transition-all group"
+              className="bv-row min-h-[56px] px-3 py-3 transition-colors md:px-4"
             >
-              <div
-                className={`w-10 h-10 rounded-lg bg-gradient-to-br ${
+              <span
+                aria-hidden
+                className={`block h-8 w-full rounded-full ${
                   COLORS[s.color] || COLORS.violet
-                } flex items-center justify-center mb-3 shadow-lg`}
-              >
-                <BookOpen className="w-5 h-5 text-white" />
-              </div>
-              <h3 className="font-semibold text-white group-hover:text-violet-300 transition-colors">
-                {s.name}
-              </h3>
-              {s.description && (
-                <p className="text-xs text-slate-400 mt-1 line-clamp-2">
-                  {s.description}
-                </p>
-              )}
-              <p className="text-[11px] text-slate-500 mt-3">
-                {s._count?.slideSessions ?? 0} bản tóm tắt
-              </p>
+                }`}
+              />
+              <span className="min-w-0">
+                <span className="bv-row-title block truncate">{s.name}</span>
+                {s.description && (
+                  <span className="mt-0.5 block truncate text-[12.5px] text-graphite">
+                    {s.description}
+                  </span>
+                )}
+              </span>
+              <span className="bv-chip bv-chip-info">
+                {s._count?.slideSessions ?? 0} BẢN
+              </span>
             </button>
           ))}
         </div>
@@ -220,8 +225,8 @@ export default function SubjectsPage() {
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
-      <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+    <div className="bv-callout my-4 flex items-start gap-2 text-ink" role="alert">
+      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-annotate" />
       <span>{message}</span>
     </div>
   );
@@ -252,62 +257,69 @@ function CreateSubject({ onCreated }: { onCreated: () => void }) {
 
   if (!open) {
     return (
-      <Button
+      <button
         onClick={() => setOpen(true)}
-        className="bg-violet-600 hover:bg-violet-500 text-white"
+        className="bv-btn bv-btn-primary min-h-[44px]"
       >
-        <Plus className="w-4 h-4 mr-2" /> Thêm môn học
-      </Button>
+        <Plus className="h-4 w-4" /> Thêm môn học
+      </button>
     );
   }
 
   return (
-    <Card className="glass-panel border-violet-500/20 text-white">
-      <CardContent className="p-4 md:p-5 space-y-3">
-        <Input
-          autoFocus
-          placeholder="Tên môn học (vd: Giải tích 1)"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
-          className="h-10 text-white"
-        />
-        <div className="flex items-center gap-2">
-          {COLOR_KEYS.map((c) => (
-            <button
-              key={c}
-              onClick={() => setColor(c)}
-              className={`w-7 h-7 rounded-full bg-gradient-to-br ${
-                COLORS[c]
-              } ${
-                color === c
-                  ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900'
-                  : 'opacity-70'
-              }`}
-              aria-label={c}
-            />
-          ))}
-        </div>
-        {err && <ErrorBanner message={err} />}
-        <div className="flex gap-2">
-          <Button
-            onClick={submit}
-            disabled={busy || !name.trim()}
-            className="bg-violet-600 hover:bg-violet-500 text-white"
+    <div className="bv-sheet-flat w-full p-4">
+      <label className="bv-eyebrow mb-1.5 block" htmlFor="ten-mon-hoc">
+        Tên môn học
+      </label>
+      <input
+        id="ten-mon-hoc"
+        autoFocus
+        className="bv-input"
+        placeholder="Tên môn học (vd: Giải tích 1)"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && submit()}
+      />
+
+      <p className="bv-eyebrow mb-1.5 mt-4">Màu nhận diện</p>
+      <div className="flex flex-wrap items-center gap-1">
+        {COLOR_KEYS.map((c) => (
+          <button
+            key={c}
+            onClick={() => setColor(c)}
+            aria-label={c}
+            aria-pressed={color === c}
+            // Vùng chạm 44px, chấm màu bên trong nhỏ hơn.
+            className={`grid h-11 w-11 place-items-center rounded-md border transition-colors ${
+              color === c
+                ? 'border-blueprint bg-blueprint-wash'
+                : 'border-transparent hover:bg-sheet-alt'
+            }`}
           >
-            {busy && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Tạo
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            className="border-white/10 bg-white/5 text-white hover:bg-white/10"
-          >
-            Huỷ
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            <span className={`block h-5 w-5 rounded-full ${COLORS[c]}`} />
+          </button>
+        ))}
+      </div>
+
+      {err && <ErrorBanner message={err} />}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button
+          onClick={submit}
+          disabled={busy || !name.trim()}
+          className="bv-btn bv-btn-primary min-h-[44px]"
+        >
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          Tạo
+        </button>
+        <button
+          onClick={() => setOpen(false)}
+          className="bv-btn min-h-[44px]"
+        >
+          Huỷ
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -353,114 +365,134 @@ function SubjectView({
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-6 mt-2 md:mt-0">
+    <div className="mx-auto w-full max-w-5xl px-5 py-7 md:px-8">
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors"
+        className="mb-4 flex min-h-[44px] items-center gap-2 text-sm text-graphite transition-colors hover:text-ink"
       >
-        <ArrowLeft className="w-4 h-4" /> Tất cả môn học
+        <ArrowLeft className="h-4 w-4" /> Tất cả môn học
       </button>
 
-      <div className="flex items-center gap-3">
-        <div
-          className={`w-12 h-12 rounded-xl bg-gradient-to-br ${
-            COLORS[subject.color] || COLORS.violet
-          } flex items-center justify-center shadow-lg`}
-        >
-          <BookOpen className="w-6 h-6 text-white" />
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b-2 border-ink pb-4">
+        <div className="min-w-0">
+          <p className="bv-eyebrow mb-1.5">Mã bản vẽ · A-01 · Môn học</p>
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className={`block h-7 w-[3px] shrink-0 rounded-full ${
+                COLORS[subject.color] || COLORS.violet
+              }`}
+            />
+            <h1 className="text-2xl text-ink">{subject.name}</h1>
+          </div>
+          {subject.description && (
+            <p className="mt-1 max-w-[60ch] text-sm text-graphite">
+              {subject.description}
+            </p>
+          )}
         </div>
-        <h1 className="text-2xl md:text-3xl font-bold text-white">
-          {subject.name}
-        </h1>
-      </div>
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="bv-btn bv-btn-primary min-h-[44px]"
+        >
+          {uploading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <UploadCloud className="h-4 w-4" />
+          )}
+          Tải slide
+        </button>
+      </header>
 
       {err && <ErrorBanner message={err} />}
 
-      <Card className="glass-panel border-white/10 text-white">
-        <CardContent className="p-5">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.pptx,image/*,.txt,.md"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) upload(f);
-            }}
-          />
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploading}
-            className="w-full flex flex-col items-center justify-center gap-3 py-8 rounded-xl border-2 border-dashed border-violet-500/40 hover:border-violet-400 hover:bg-violet-500/5 transition-all disabled:opacity-60"
-          >
-            {uploading ? (
-              <>
-                <Loader2 className="w-8 h-8 text-violet-400 animate-spin" />
-                <span className="text-sm text-slate-300">
-                  Đang đọc & tóm tắt slide... (có thể mất ~30 giây)
-                </span>
-              </>
-            ) : (
-              <>
-                <UploadCloud className="w-8 h-8 text-violet-400" />
-                <span className="text-sm text-slate-300">
-                  Tải slide hôm nay (PDF, PPTX, ảnh)
-                </span>
-              </>
-            )}
-          </button>
-        </CardContent>
-      </Card>
-
-      <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide">
-          Bản tóm tắt ({subject.slideSessions.length})
-        </h2>
-        {subject.slideSessions.length === 0 ? (
-          <p className="text-slate-500 text-sm py-6 text-center">
-            Chưa có bản tóm tắt nào cho môn này.
-          </p>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".pdf,.pptx,image/*,.txt,.md"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) upload(f);
+        }}
+      />
+      <button
+        onClick={() => fileRef.current?.click()}
+        disabled={uploading}
+        className="flex w-full flex-col items-center justify-center gap-3 rounded-md border border-dashed border-rule bg-sheet px-4 py-8 text-center transition-colors hover:border-blueprint hover:bg-sheet-alt disabled:opacity-60"
+      >
+        {uploading ? (
+          <>
+            <Loader2 className="h-7 w-7 animate-spin text-blueprint" />
+            <span className="text-sm text-graphite">
+              Đang đọc &amp; tóm tắt slide... (có thể mất ~30 giây)
+            </span>
+          </>
         ) : (
-          subject.slideSessions.map((s) => (
-            <div
-              key={s.id}
-              className="flex items-center gap-3 p-3 md:p-4 rounded-xl glass-panel border border-white/5 hover:bg-white/5 transition group"
-            >
-              <FileText className="w-5 h-5 text-violet-400 shrink-0" />
-              <button
-                onClick={() => s.status === 'completed' && onOpenSession(s.id)}
-                className="flex-1 text-left min-w-0"
-                disabled={s.status !== 'completed'}
-              >
-                <p className="font-medium text-slate-200 truncate group-hover:text-violet-300">
-                  {s.title}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {new Date(s.createdAt).toLocaleDateString('vi-VN')} •{' '}
-                  <StatusBadge status={s.status} />
-                </p>
-              </button>
-              <button
-                onClick={() => del(s.id)}
-                className="text-slate-500 hover:text-rose-400 transition-colors p-1"
-                aria-label="Xoá"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))
+          <>
+            <UploadCloud className="h-7 w-7 text-blueprint" />
+            <span className="text-sm text-graphite">
+              Tải slide hôm nay (PDF, PPTX, ảnh)
+            </span>
+          </>
         )}
-      </div>
+      </button>
+
+      <h2 className="bv-eyebrow mb-2 mt-7">
+        Bản tóm tắt ({subject.slideSessions.length})
+      </h2>
+      {subject.slideSessions.length === 0 ? (
+        <p className="bv-empty text-sm">
+          Chưa có bản tóm tắt nào cho môn này.
+        </p>
+      ) : (
+        <div className="bv-rows">
+          {subject.slideSessions.map((s) => (
+            <div key={s.id} className="bv-row min-h-[56px] px-3 py-2.5 md:px-4">
+              <span
+                aria-hidden
+                className={`block h-8 w-full rounded-full ${
+                  COLORS[subject.color] || COLORS.violet
+                }`}
+              />
+              <div className="flex min-w-0 items-center gap-3">
+                <FileText className="h-[18px] w-[18px] shrink-0 text-graphite" />
+                <button
+                  onClick={() => s.status === 'completed' && onOpenSession(s.id)}
+                  className="min-h-[44px] min-w-0 flex-1 text-left"
+                  disabled={s.status !== 'completed'}
+                >
+                  <p className="bv-row-title truncate">{s.title}</p>
+                  <p className="bv-row-sub">
+                    {new Date(s.createdAt).toLocaleDateString('vi-VN')}
+                  </p>
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <StatusBadge status={s.status} />
+                <button
+                  onClick={() => del(s.id)}
+                  className="grid h-11 w-11 place-items-center rounded-md text-graphite transition-colors hover:bg-annotate-wash hover:text-annotate"
+                  aria-label="Xoá"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    completed: 'text-emerald-400',
-    processing: 'text-amber-400',
-    uploaded: 'text-slate-400',
-    failed: 'text-rose-400',
+    completed: 'bv-chip-done',
+    processing: 'bv-chip-work',
+    uploaded: 'bv-chip-info',
+    failed: 'bv-chip-todo',
   };
   const label: Record<string, string> = {
     completed: 'Hoàn thành',
@@ -469,7 +501,7 @@ function StatusBadge({ status }: { status: string }) {
     failed: 'Lỗi',
   };
   return (
-    <span className={map[status] || 'text-slate-400'}>
+    <span className={`bv-chip ${map[status] || 'bv-chip-info'}`}>
       {label[status] || status}
     </span>
   );
@@ -538,77 +570,73 @@ function SessionView({
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto space-y-6 mt-2 md:mt-0">
+    <div className="mx-auto w-full max-w-5xl px-5 py-7 md:px-8">
       <button
         onClick={onBack}
-        className="flex items-center gap-2 text-slate-400 hover:text-white text-sm transition-colors"
+        className="mb-4 flex min-h-[44px] items-center gap-2 text-sm text-graphite transition-colors hover:text-ink"
       >
-        <ArrowLeft className="w-4 h-4" /> Quay lại
+        <ArrowLeft className="h-4 w-4" /> Quay lại
       </button>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-white">
-          {s?.title || session.title}
-        </h1>
-        <div className="flex gap-2">
-          <Button
+      <header className="mb-6 border-b-2 border-ink pb-4">
+        <p className="bv-eyebrow mb-1.5">Mã bản vẽ · A-01 · Bản tóm tắt</p>
+        <h1 className="text-2xl text-ink">{s?.title || session.title}</h1>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
             onClick={() => download('md')}
             disabled={!!downloading}
-            variant="outline"
-            className="border-white/10 bg-white/5 text-white hover:bg-white/10"
+            className="bv-btn min-h-[44px]"
           >
             {downloading === 'md' ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="h-4 w-4" />
             )}
             .md
-          </Button>
-          <Button
+          </button>
+          <button
             onClick={() => download('html')}
             disabled={!!downloading}
-            className="bg-violet-600 hover:bg-violet-500 text-white"
+            className="bv-btn bv-btn-primary min-h-[44px]"
           >
             {downloading === 'html' ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="h-4 w-4" />
             )}
             In / PDF
-          </Button>
-          <Button
+          </button>
+          <button
             onClick={makeFlashcards}
             disabled={cardState === 'busy' || cardState === 'done'}
-            variant="outline"
-            className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
+            className="bv-btn min-h-[44px]"
           >
             {cardState === 'busy' ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <GraduationCap className="w-4 h-4 mr-2" />
+              <GraduationCap className="h-4 w-4" />
             )}
             Tạo flashcards
-          </Button>
-          <Button
+          </button>
+          <button
             onClick={makeQuiz}
             disabled={quizBusy || !!quiz}
-            variant="outline"
-            className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300 hover:bg-cyan-500/20"
+            className="bv-btn min-h-[44px]"
           >
             {quizBusy ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <ListChecks className="w-4 h-4 mr-2" />
+              <ListChecks className="h-4 w-4" />
             )}
             Tạo quiz
-          </Button>
+          </button>
         </div>
-      </div>
+      </header>
 
       {quiz && (
-        <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/[0.03] p-4">
-          <h2 className="text-sm font-semibold text-cyan-300 mb-3 flex items-center gap-2">
-            <ListChecks className="w-4 h-4" /> Quiz ôn tập
+        <div className="bv-sheet mb-6 p-4">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
+            <ListChecks className="h-4 w-4 text-blueprint" /> Quiz ôn tập
           </h2>
           <QuizRunner quiz={quiz} onClose={() => setQuiz(null)} />
         </div>
@@ -616,10 +644,8 @@ function SessionView({
 
       {cardMsg && (
         <p
-          className={`text-sm rounded-lg px-3 py-2 ${
-            cardState === 'error'
-              ? 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
-              : 'text-emerald-300 bg-emerald-500/10 border border-emerald-500/20'
+          className={`bv-callout mb-6 ${
+            cardState === 'error' ? '' : 'bv-callout-info'
           }`}
         >
           {cardMsg}
@@ -629,67 +655,86 @@ function SessionView({
       {!s ? (
         <ErrorBanner message="Bản tóm tắt chưa sẵn sàng." />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
+          {/* ── Tổng quan ─────────────────────────────────────────
+              Cột chính giữ bản tiếng Anh; bản tiếng Việt ra lề phải.
+              Nếu bản tiếng Anh trống thì đưa tiếng Việt vào cột chính
+              để không mất nội dung. */}
           {s.overviewVi && (
-            <section className="rounded-xl bg-violet-500/5 border border-violet-500/10 p-4">
-              <h2 className="text-sm font-semibold text-violet-300 mb-2 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" /> Tổng quan
-              </h2>
-              <p className="text-sm text-slate-300 leading-relaxed">
-                {s.overviewVi}
-              </p>
+            <section className="bv-sheet-grid">
+              <div className="bv-read">
+                <h2 className="font-ui text-base font-semibold text-ink">
+                  Tổng quan
+                </h2>
+                <p>{s.overviewEn || s.overviewVi}</p>
+              </div>
               {s.overviewEn && (
-                <p className="text-sm text-slate-400 leading-relaxed mt-2 italic">
-                  {s.overviewEn}
-                </p>
+                <aside className="bv-margin">
+                  <div className="bv-note">
+                    <span className="bv-note-lang">VI</span>
+                    <p className="bv-note-body">{s.overviewVi}</p>
+                  </div>
+                </aside>
               )}
             </section>
           )}
 
+          {/* ── Các mục ───────────────────────────────────────────
+              `heading` là tiếng Anh, `headingVi` là bản dịch → tách
+              được sang lề.
+              TODO(bố-cục-2-làn): `points` là string[] không có trường
+              tiếng Việt riêng (API trả về một chuỗi có thể lẫn Anh–Việt),
+              nên phải để nguyên ở cột chính. Khi backend tách được
+              pointEn/pointVi thì đưa phần Việt ra <aside className="bv-margin">. */}
           {s.sections?.map((sec, i) => (
-            <section key={i}>
-              <h3 className="font-semibold text-white mb-2">
-                {sec.heading}
-                {sec.headingVi && (
-                  <span className="text-slate-400 font-normal">
-                    {' '}
-                    — {sec.headingVi}
-                  </span>
-                )}
-              </h3>
-              <ul className="space-y-1.5">
-                {sec.points?.map((p, j) => (
-                  <li
-                    key={j}
-                    className="text-sm text-slate-300 pl-4 relative before:content-[''] before:absolute before:left-0 before:top-2 before:w-1.5 before:h-1.5 before:rounded-full before:bg-violet-400"
-                  >
-                    {p}
-                  </li>
-                ))}
-              </ul>
+            <section key={i} className="bv-sheet-grid">
+              <div className="bv-read">
+                <h3 className="font-ui text-base font-semibold text-ink">
+                  {sec.heading}
+                </h3>
+                <ul className="space-y-2">
+                  {sec.points?.map((p, j) => (
+                    <li
+                      key={j}
+                      className="relative pl-4 before:absolute before:left-0 before:top-[0.62em] before:h-1.5 before:w-1.5 before:rounded-full before:bg-blueprint before:content-['']"
+                    >
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {sec.headingVi && (
+                <aside className="bv-margin">
+                  <div className="bv-note">
+                    <span className="bv-note-lang">VI</span>
+                    <p className="bv-note-body">{sec.headingVi}</p>
+                  </div>
+                </aside>
+              )}
             </section>
           ))}
 
+          {/* ── Thuật ngữ: đúng hình mẫu của sản phẩm ─────────────
+              Thuật ngữ + định nghĩa GIỮ NGUYÊN TIẾNG ANH ở cột chính,
+              nghĩa tiếng Việt (glossVi) nằm ở lề. */}
           {s.keyTerms?.length > 0 && (
             <section>
-              <h3 className="font-semibold text-white mb-3">
+              <h3 className="mb-4 font-ui text-base font-semibold text-ink">
                 Thuật ngữ quan trọng
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-6">
                 {s.keyTerms.map((t, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg bg-slate-900/50 border border-white/5 p-3"
-                  >
-                    <p className="font-semibold text-violet-300 text-sm">
-                      {t.term}
-                    </p>
-                    <p className="text-sm text-slate-300 mt-1">
-                      {t.definitionEn}
-                    </p>
-                    <p className="text-xs text-amber-300/90 mt-1">
-                      🇻🇳 {t.glossVi}
-                    </p>
+                  <div key={i} className="bv-sheet-grid">
+                    <div className="bv-read">
+                      <p className="bv-term">{t.term}</p>
+                      <p className="mt-1">{t.definitionEn}</p>
+                    </div>
+                    <aside className="bv-margin">
+                      <div className="bv-note">
+                        <span className="bv-note-lang">VI</span>
+                        <p className="bv-note-body">{t.glossVi}</p>
+                      </div>
+                    </aside>
                   </div>
                 ))}
               </div>
@@ -697,33 +742,41 @@ function SessionView({
           )}
 
           {s.formulas?.length > 0 && (
-            <section>
-              <h3 className="font-semibold text-white mb-2">Công thức</h3>
-              <div className="flex flex-wrap gap-2">
-                {s.formulas.map((f, i) => (
-                  <code
-                    key={i}
-                    className="text-xs bg-slate-900/70 border border-white/10 rounded px-2 py-1 text-cyan-300"
-                  >
-                    {f}
-                  </code>
-                ))}
+            <section className="bv-sheet-grid">
+              <div className="bv-read">
+                <h3 className="font-ui text-base font-semibold text-ink">
+                  Công thức
+                </h3>
+                {/* Công thức dài tự cuộn ngang trong khung riêng
+                    (.bv-formula có overflow-x:auto) — cả trang không cuộn. */}
+                <div className="space-y-2">
+                  {s.formulas.map((f, i) => (
+                    <div key={i} className="bv-formula">
+                      {f}
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
           )}
 
+          {/* TODO(bố-cục-2-làn): `examTips` không khai báo ngôn ngữ trong
+              kiểu dữ liệu nên không thể chắc chắn đó là phần tiếng Việt của
+              một nội dung tiếng Anh nào; để nguyên ở cột chính dạng lời nhắc. */}
           {s.examTips?.length > 0 && (
-            <section className="rounded-xl bg-amber-500/5 border border-amber-500/10 p-4">
-              <h3 className="font-semibold text-amber-300 mb-2">
-                Trọng tâm ôn thi
-              </h3>
-              <ul className="space-y-1.5">
-                {s.examTips.map((t, i) => (
-                  <li key={i} className="text-sm text-slate-300">
-                    • {t}
-                  </li>
-                ))}
-              </ul>
+            <section className="bv-sheet-grid">
+              <div className="bv-read">
+                <div className="bv-callout">
+                  <h3 className="mb-1.5 font-ui text-sm font-semibold text-ink">
+                    Trọng tâm ôn thi
+                  </h3>
+                  <ul className="space-y-1.5 text-[14px] text-ink">
+                    {s.examTips.map((t, i) => (
+                      <li key={i}>• {t}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </section>
           )}
         </div>

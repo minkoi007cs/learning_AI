@@ -6,7 +6,11 @@ import helmet from 'helmet';
 import express from 'express';
 import type { Request, Response } from 'express';
 import { AppModule } from './app.module';
-import { GlobalExceptionFilter, TransformInterceptor } from './common';
+import {
+  GlobalExceptionFilter,
+  TransformInterceptor,
+  buildCorsOptions,
+} from './common';
 
 function sanitizeDbUrl(raw?: string): string | undefined {
   if (!raw) return raw;
@@ -40,12 +44,8 @@ async function bootstrapServer(): Promise<express.Express> {
 
   app.use(helmet());
 
-  app.enableCors({
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
+  // CORS — xem common/cors.ts (BUG-10)
+  app.enableCors(buildCorsOptions());
 
   const prefix = process.env.API_PREFIX || 'v1';
   app.setGlobalPrefix(prefix);

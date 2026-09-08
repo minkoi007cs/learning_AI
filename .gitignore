@@ -21,3 +21,9 @@ build/
 # Agent / local orchestration state (not for deploy)
 .agentui/
 state/
+
+# Log do scripts/start.sh sinh ra
+.logs/
+
+# File tam khi keo bien tu Vercel (scripts/pull-env-vercel.sh)
+.vercel-pull.env

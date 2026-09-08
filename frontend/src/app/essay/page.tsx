@@ -1,11 +1,16 @@
 "use client";
 
 import { useState } from 'react';
-import { PenBox, BrainCircuit, AlignLeft, Send, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { BrainCircuit, Loader2 } from 'lucide-react';
 
+/**
+ * A-05 · Xưởng bài luận — hệ "Bản vẽ".
+ *
+ * Bài viết là cột chính của bản vẽ: serif (`font-read`), bề rộng đọc ~65ch.
+ * Nhận xét và điểm dự đoán của AI KHÔNG chen vào giữa bài; chúng nằm ngoài lề
+ * phải như ghi chú bút chì (`.bv-margin` + `.bv-note`, `.bv-callout`), nối vào
+ * cột chính bằng đường gióng đứt nét.
+ */
 export default function EssayBuilder() {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -20,84 +25,113 @@ export default function EssayBuilder() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-6 md:space-y-8 mt-2 md:mt-0">
-      <div className="flex items-center gap-3 md:gap-4 mb-2 md:mb-4">
-        <div className="p-2 md:p-3 bg-fuchsia-500/20 rounded-xl border border-fuchsia-500/30 shrink-0">
-          <PenBox className="w-6 h-6 md:w-8 md:h-8 text-fuchsia-400" />
+    <div className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-7">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-4 border-b-2 border-ink pb-4">
+        <div className="min-w-0">
+          <p className="bv-eyebrow mb-1.5">Mã bản vẽ · A-05</p>
+          <h1 className="text-xl text-ink md:text-2xl">Xưởng bài luận</h1>
+          <p className="mt-1 max-w-[60ch] text-sm text-graphite">
+            Viết bài luận theo khung chấm điểm, AI rà lại nhiều vòng rồi ghi nhận xét ra lề.
+          </p>
         </div>
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold text-white tracking-tight">Essay Studio</h1>
-          <p className="text-xs md:text-sm text-slate-400 mt-0.5 md:mt-1">Generate high-scoring essays using iterative AI refinement</p>
-        </div>
-      </div>
+        <button
+          onClick={mockGenerate}
+          disabled={!prompt || isGenerating}
+          className="bv-btn bv-btn-primary min-h-[44px]"
+        >
+          {isGenerating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <BrainCircuit className="h-4 w-4" strokeWidth={1.8} />
+          )}
+          {isGenerating ? 'Đang tổng hợp…' : 'Sinh bài luận'}
+        </button>
+      </header>
 
-      <div className="grid lg:grid-cols-2 gap-4 md:gap-8">
-        <div className="space-y-6">
-          <Card className="glass-panel border-white/10 text-white">
-            <CardHeader className="p-4 md:p-6 pb-2 md:pb-4">
-              <CardTitle className="text-lg md:text-xl flex items-center gap-2">
-                <AlignLeft className="w-4 h-4 md:w-5 md:h-5 text-fuchsia-400" /> Essay Prompt
-              </CardTitle>
-              <CardDescription className="text-xs md:text-sm text-slate-400">Describe the topic and requirements for your essay</CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 md:p-6 pt-0 space-y-4">
-              <Textarea 
-                placeholder="e.g. Write a 1000 word persuasive essay on the effects of social media on teenage mental health..."
-                className="min-h-[120px] md:min-h-[150px] bg-slate-900/50 border-white/10 text-slate-100 placeholder:text-slate-500 resize-none text-sm md:text-base"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-              />
-              <div className="p-3 md:p-4 rounded-xl bg-slate-900/50 border border-white/5 space-y-2 md:space-y-3">
-                <h4 className="text-xs md:text-sm font-semibold text-slate-300">Selected Rubric</h4>
-                <div className="flex flex-wrap gap-1.5 md:gap-2">
-                  <span className="text-[10px] md:text-xs px-2 py-1 rounded bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-300">College Level</span>
-                  <span className="text-[10px] md:text-xs px-2 py-1 rounded bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-300">Persuasive</span>
-                  <span className="text-[10px] md:text-xs px-2 py-1 rounded bg-fuchsia-500/10 border border-fuchsia-500/20 text-fuchsia-300">Standard Academic Matrix</span>
-                </div>
+      {/* ── Đề bài ─────────────────────────────────────────── */}
+      <section className="bv-sheet mb-6 p-4 md:p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-rule-soft pb-3">
+          <h2 className="text-base font-semibold text-ink">Đề bài</h2>
+          <span className="bv-eyebrow">ESSAY PROMPT</span>
+        </div>
+
+        <label className="bv-eyebrow mb-1.5 block" htmlFor="de-bai">
+          Chủ đề và yêu cầu
+        </label>
+        <textarea
+          id="de-bai"
+          placeholder="Ví dụ: Write a 1000 word persuasive essay on the effects of social media on teenage mental health…"
+          className="bv-input min-h-[120px] resize-y md:min-h-[140px]"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+        />
+
+        <div className="mt-4">
+          <p className="bv-eyebrow mb-2">Khung chấm điểm đang chọn</p>
+          <div className="flex flex-wrap gap-1.5">
+            <span className="bv-chip bv-chip-info">COLLEGE LEVEL</span>
+            <span className="bv-chip bv-chip-info">PERSUASIVE</span>
+            <span className="bv-chip bv-chip-info">STANDARD ACADEMIC MATRIX</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Bản thảo + ghi chú lề ──────────────────────────── */}
+      <section className="bv-sheet p-4 md:p-6">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-rule-soft pb-3">
+          <h2 className="text-base font-semibold text-ink">Bản thảo</h2>
+          {essay && (
+            <span className="bv-chip bv-chip-done">ĐIỂM DỰ ĐOÁN · 95/100</span>
+          )}
+        </div>
+
+        {isGenerating ? (
+          <div className="bv-empty flex flex-col items-center gap-3">
+            <Loader2 className="h-6 w-6 animate-spin text-blueprint" />
+            <p className="font-data text-xs tracking-wide text-graphite">
+              Đang chạy các vòng tự rà soát…
+            </p>
+          </div>
+        ) : essay ? (
+          <div className="bv-sheet-grid">
+            <article className="bv-read max-w-[65ch] text-ink">
+              <p className="whitespace-pre-line">{essay}</p>
+            </article>
+
+            {/* Lề phải: nhận xét của AI, không chen vào bài viết */}
+            <aside className="bv-margin">
+              <div className="bv-note">
+                <span className="bv-note-lang">VI · ĐIỂM</span>
+                <p className="bv-note-body">
+                  Dự đoán <strong>95/100</strong> theo khung “Standard Academic Matrix”.
+                </p>
               </div>
-              <Button 
-                onClick={mockGenerate}
-                disabled={!prompt || isGenerating}
-                className="w-full h-10 md:h-11 bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-semibold flex items-center gap-2 transition-all shadow-[0_0_15px_rgba(192,132,252,0.4)] text-sm md:text-base"
-              >
-                {isGenerating ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" /> : <BrainCircuit className="w-4 h-4 md:w-5 md:h-5" />}
-                {isGenerating ? 'Synthesizing...' : 'Generate Perfect Essay'}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="h-[400px] md:h-auto">
-          <Card className="glass-panel border-white/10 text-white h-full md:h-[600px] flex flex-col relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-[200px] md:w-[300px] h-[200px] md:h-[300px] bg-fuchsia-600/10 blur-[60px] md:blur-[80px] rounded-full mix-blend-screen pointer-events-none" />
-            <CardHeader className="p-4 md:p-6 border-b border-white/5 pb-3 md:pb-4 z-10 shrink-0">
-              <CardTitle className="text-base md:text-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span>Output Workspace</span>
-                {essay && <span className="text-[10px] md:text-xs px-2 md:px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium self-start sm:self-auto">Predicted Score: 95/100</span>}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 overflow-y-auto p-4 md:p-6 z-10">
-              {isGenerating ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
-                  <div className="relative">
-                    <Loader2 className="w-8 h-8 md:w-12 md:h-12 animate-spin text-fuchsia-500" />
-                    <div className="absolute inset-0 blur-xl bg-fuchsia-500/30 animate-pulse rounded-full" />
-                  </div>
-                  <p className="text-xs md:text-sm font-medium animate-pulse">Running internal review loops...</p>
-                </div>
-              ) : essay ? (
-                <div className="prose prose-sm md:prose-base prose-invert prose-fuchsia max-w-none text-slate-300">
-                  <p className="whitespace-pre-line leading-relaxed text-sm md:text-base">{essay}</p>
-                </div>
-              ) : (
-                <div className="h-full flex items-center justify-center text-slate-500 font-medium text-xs md:text-sm">
-                  Generated essay will appear here
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+              <div className="bv-note">
+                <span className="bv-note-lang">VI · ĐIỂM MẠNH</span>
+                <p className="bv-note-body">
+                  Luận đề rõ, mỗi đoạn có câu chủ đề và dẫn chứng cụ thể.
+                </p>
+              </div>
+              <div className="bv-note">
+                <span className="bv-note-lang">VI · CẦN SỬA</span>
+                <p className="bv-note-body">
+                  Phần kết còn chung chung — nên nhắc lại luận đề bằng từ khác.
+                </p>
+              </div>
+              <div className="bv-callout mt-6">
+                Đọc lại và viết bằng giọng của bạn trước khi nộp.
+              </div>
+            </aside>
+          </div>
+        ) : (
+          <div className="bv-empty">
+            <p className="text-sm">Bài luận sinh ra sẽ hiện ở đây.</p>
+            <p className="mt-1 font-data text-xs text-graphite-soft">
+              Nhập đề bài rồi bấm “Sinh bài luận”.
+            </p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

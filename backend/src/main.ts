@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common';
 import { TransformInterceptor } from './common';
+import { buildCorsOptions } from './common';
 
 async function bootstrap(): Promise<void> {
   const logger = new Logger('Bootstrap');
@@ -15,13 +16,8 @@ async function bootstrap(): Promise<void> {
   // Security
   app.use(helmet());
 
-  // CORS
-  app.enableCors({
-    origin: true,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
+  // CORS — xem common/cors.ts (BUG-10)
+  app.enableCors(buildCorsOptions(logger));
 
   // Redirect root domain to Swagger API documentation
   const httpAdapter = app.getHttpAdapter();

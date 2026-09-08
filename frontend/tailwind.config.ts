@@ -1,7 +1,11 @@
 import type { Config } from "tailwindcss";
 
 const config = {
-  darkMode: ["class"],
+  // Chế độ tối bật theo thuộc tính data-theme trên <html> (xem ThemeToggle.tsx).
+  // Phần lớn màu đã tự đổi qua biến CSS trong globals.css, nên biến thể `dark:`
+  // hầu như không cần dùng — nếu thấy mình đang viết `dark:`, khả năng cao là
+  // đang thiếu một biến màu.
+  darkMode: ["class", '[data-theme="dark"]'],
   content: [
     './pages/**/*.{ts,tsx}',
     './components/**/*.{ts,tsx}',
@@ -18,7 +22,33 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        ui: ['var(--font-ui)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        read: ['var(--font-read)', 'Georgia', 'serif'],
+        data: ['var(--font-data)', 'ui-monospace', 'monospace'],
+      },
       colors: {
+        // ── Bảng màu "Bản vẽ" — dùng THẲNG những tên này khi viết giao diện:
+        //    text-ink · text-graphite · bg-sheet · border-rule · text-annotate…
+        //    Đừng viết text-slate-400 hay bg-[#0A0A0A] nữa: chúng không đổi
+        //    theo chế độ sáng/tối và sẽ vỡ. Xem globals.css để biết ý nghĩa
+        //    từng màu.
+        paper: 'var(--paper)',
+        sheet: { DEFAULT: 'var(--sheet)', alt: 'var(--sheet-alt)' },
+        ink: 'var(--ink)',
+        graphite: { DEFAULT: 'var(--graphite)', soft: 'var(--graphite-2)' },
+        rule: { DEFAULT: 'var(--rule)', soft: 'var(--rule-soft)' },
+        blueprint: { DEFAULT: 'var(--blueprint)', wash: 'var(--blueprint-w)' },
+        annotate: { DEFAULT: 'var(--annotate)', wash: 'var(--annotate-w)' },
+        verdigris: { DEFAULT: 'var(--verdigris)', wash: 'var(--verdigris-w)' },
+        ochre: { DEFAULT: 'var(--ochre)', wash: 'var(--ochre-w)' },
+        rail: {
+          DEFAULT: 'var(--rail)',
+          ink: 'var(--rail-ink)',
+          dim: 'var(--rail-dim)',
+          rule: 'var(--rail-rule)',
+        },
+
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

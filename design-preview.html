@@ -1,0 +1,794 @@
+<title>Bản vẽ — AI Study OS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* ============================================================
+   BẢN VẼ — hệ thiết kế cho AI Study OS
+   Ẩn dụ: bản vẽ kiến trúc. Cột chính = phần vẽ. Lề phải = ghi chú
+   bút chì đỏ của kiến trúc sư — chính là chú thích tiếng Việt.
+   ============================================================ */
+
+:root {
+  /* Sáng — giấy can ấm, mực chì, xanh lam bản vẽ */
+  --paper:      #FAF7F0;
+  --sheet:      #FFFFFF;
+  --sheet-alt:  #F2EDE4;
+  --ink:        #12181F;
+  --graphite:   #5A6B7C;
+  --graphite-2: #8794A1;
+  --rule:       #DED6C8;
+  --rule-soft:  #EAE3D7;
+
+  --blueprint:  #1B4F8C;   /* cấu trúc, tiếng Anh, tiêu điểm */
+  --blueprint-w:#E8EFF7;
+  --annotate:   #B8412A;   /* bút chì đỏ — CHỈ dùng cho chú thích bản ngữ */
+  --annotate-w: #FBEDE9;
+  --verdigris:  #2F6B54;   /* đã thuộc */
+  --verdigris-w:#E6F0EB;
+  --ochre:      #9A6B18;   /* đang xử lý */
+  --ochre-w:    #F8F0DE;
+
+  --rail:       #12181F;   /* thanh điều hướng luôn tối, cả 2 chế độ */
+  --rail-ink:   #E8E4DB;
+  --rail-dim:   #7E8A96;
+  --rail-rule:  #262E37;
+
+  --shadow: 0 1px 2px rgba(18,24,31,.05), 0 8px 24px -12px rgba(18,24,31,.14);
+
+  --f-ui:   'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --f-read: 'Source Serif 4', Georgia, serif;
+  --f-data: 'JetBrains Mono', ui-monospace, monospace;
+
+  --sp: 4px;
+  --r-s: 3px;
+  --r-m: 6px;
+  --r-l: 10px;
+}
+
+/* Tối — giấy in lam (blueprint) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper:      #0E1319;
+    --sheet:      #151C24;
+    --sheet-alt:  #1B242D;
+    --ink:        #E6E9ED;
+    --graphite:   #9AA7B4;
+    --graphite-2: #6C7A88;
+    --rule:       #29333D;
+    --rule-soft:  #1F2831;
+
+    --blueprint:  #7FB0E4;
+    --blueprint-w:#16283C;
+    --annotate:   #E2856B;
+    --annotate-w: #35201A;
+    --verdigris:  #6FBE9C;
+    --verdigris-w:#12291F;
+    --ochre:      #D9A94A;
+    --ochre-w:    #2C2312;
+
+    --rail:       #0A0E13;
+    --rail-rule:  #1C242C;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"] {
+  --paper:      #0E1319;
+  --sheet:      #151C24;
+  --sheet-alt:  #1B242D;
+  --ink:        #E6E9ED;
+  --graphite:   #9AA7B4;
+  --graphite-2: #6C7A88;
+  --rule:       #29333D;
+  --rule-soft:  #1F2831;
+
+  --blueprint:  #7FB0E4;
+  --blueprint-w:#16283C;
+  --annotate:   #E2856B;
+  --annotate-w: #35201A;
+  --verdigris:  #6FBE9C;
+  --verdigris-w:#12291F;
+  --ochre:      #D9A94A;
+  --ochre-w:    #2C2312;
+
+  --rail:       #0A0E13;
+  --rail-rule:  #1C242C;
+
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.7);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--f-ui);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { text-wrap: balance; margin: 0; font-weight: 600; letter-spacing: -.012em; }
+
+:focus-visible { outline: 2px solid var(--blueprint); outline-offset: 2px; border-radius: var(--r-s); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ── Khung trang xem trước ─────────────────────────────── */
+.wrap { max-width: 1180px; margin: 0 auto; padding: 40px 24px 96px; }
+
+.masthead {
+  display: flex; flex-wrap: wrap; gap: 20px;
+  align-items: flex-end; justify-content: space-between;
+  padding-bottom: 20px; margin-bottom: 8px;
+  border-bottom: 2px solid var(--ink);
+}
+.masthead h1 { font-size: 30px; letter-spacing: -.02em; }
+.masthead p { margin: 6px 0 0; color: var(--graphite); max-width: 56ch; font-size: 14px; }
+
+.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+.seg {
+  display: inline-flex; background: var(--sheet-alt);
+  border: 1px solid var(--rule); border-radius: var(--r-m); padding: 2px;
+}
+.seg button {
+  font: 500 12px/1 var(--f-ui); letter-spacing: .04em;
+  padding: 7px 11px; border: 0; border-radius: var(--r-s);
+  background: transparent; color: var(--graphite); cursor: pointer;
+  min-height: 30px;
+}
+.seg button[aria-pressed="true"] { background: var(--sheet); color: var(--ink); box-shadow: var(--shadow); }
+
+/* ── Nhãn mục — dùng ký hiệu bản vẽ ─────────────────────── */
+.plate { margin-top: 52px; }
+.plate-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
+.plate-ref {
+  font: 500 11px/1 var(--f-data); letter-spacing: .1em;
+  color: var(--annotate); border: 1px solid currentColor;
+  padding: 4px 6px; border-radius: var(--r-s);
+}
+.plate-head h2 { font-size: 17px; }
+.plate-note { color: var(--graphite); font-size: 13px; margin: 0 0 18px; max-width: 68ch; }
+
+/* Khung "màn hình ứng dụng" */
+.frame {
+  border: 1px solid var(--rule); border-radius: var(--r-l);
+  background: var(--sheet); overflow: hidden; box-shadow: var(--shadow);
+}
+
+/* ── Thanh điều hướng (luôn tối) ────────────────────────── */
+.app { display: grid; grid-template-columns: 216px 1fr; min-height: 480px; }
+.rail { background: var(--rail); color: var(--rail-ink); padding: 18px 14px; display: flex; flex-direction: column; gap: 22px; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 6px; }
+.brand-mark {
+  width: 30px; height: 30px; border-radius: var(--r-s);
+  border: 1.5px solid var(--rail-ink); display: grid; place-items: center;
+  font: 600 13px/1 var(--f-data); letter-spacing: -.04em;
+}
+.brand-name { font-weight: 600; font-size: 14px; letter-spacing: -.01em; }
+.brand-sub { font: 400 10px/1.3 var(--f-data); color: var(--rail-dim); letter-spacing: .08em; }
+
+.nav { display: flex; flex-direction: column; gap: 1px; }
+.nav a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: var(--r-m);
+  color: var(--rail-dim); text-decoration: none; font-size: 13.5px; font-weight: 500;
+  border-left: 2px solid transparent;
+}
+.nav a:hover { color: var(--rail-ink); background: rgba(255,255,255,.04); }
+.nav a[aria-current="page"] {
+  color: var(--rail-ink); background: rgba(255,255,255,.06);
+  border-left-color: var(--annotate);
+}
+.nav svg { width: 15px; height: 15px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.6; }
+.nav .count { margin-left: auto; font: 500 11px/1 var(--f-data); color: var(--annotate); }
+
+.rail-foot { margin-top: auto; border-top: 1px solid var(--rail-rule); padding-top: 14px; display: flex; align-items: center; gap: 9px; }
+.avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--annotate); color: #fff; display: grid; place-items: center; font: 600 12px/1 var(--f-ui); }
+.rail-foot div { min-width: 0; }
+.rail-foot .nm { font-size: 12.5px; font-weight: 500; }
+.rail-foot .em { font: 400 10.5px/1.3 var(--f-data); color: var(--rail-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Vùng nội dung ───────────────────────────────────────── */
+.pane { padding: 26px 30px; min-width: 0; }
+.pane-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+.eyebrow { font: 500 10.5px/1 var(--f-data); letter-spacing: .12em; color: var(--graphite-2); margin-bottom: 7px; }
+.pane-head h3 { font-size: 21px; }
+
+/* ── TỜ TÓM TẮT: 2 làn — bản vẽ + lề ghi chú ────────────── */
+.sheet-grid { display: grid; grid-template-columns: minmax(0,1fr) 224px; gap: 0 30px; }
+.sheet-main { min-width: 0; font-family: var(--f-read); font-size: 16px; line-height: 1.7; }
+.sheet-main > * + * { margin-top: 16px; }
+.sheet-main h4 { font-family: var(--f-ui); font-size: 12.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--graphite); margin-top: 26px; }
+
+.term { font-weight: 600; color: var(--blueprint); }
+.sheet-main ul { margin: 0; padding-left: 18px; }
+.sheet-main li + li { margin-top: 7px; }
+
+/* Lề ghi chú — có đường gióng như bản vẽ kỹ thuật */
+.margin { border-left: 1px solid var(--rule); padding-left: 22px; position: relative; }
+.note { position: relative; padding: 0 0 0 0; }
+.note + .note { margin-top: 26px; }
+.note::before {
+  content: ""; position: absolute; left: -22px; top: 9px; width: 14px;
+  border-top: 1px dashed var(--annotate); opacity: .65;
+}
+.note-lang { font: 500 9.5px/1 var(--f-data); letter-spacing: .14em; color: var(--annotate); display: block; margin-bottom: 5px; }
+.note-body { font-family: var(--f-read); font-size: 13.5px; line-height: 1.6; color: var(--ink); }
+
+.formula {
+  font-family: var(--f-data); font-size: 13px;
+  background: var(--sheet-alt); border: 1px solid var(--rule-soft);
+  border-radius: var(--r-s); padding: 9px 11px; overflow-x: auto;
+}
+
+.figure {
+  border: 1px solid var(--rule); border-radius: var(--r-m);
+  background: var(--sheet-alt); padding: 12px; margin-top: 20px;
+}
+.figure svg { display: block; width: 100%; height: auto; }
+.figure figcaption {
+  font: 400 11.5px/1.5 var(--f-data); color: var(--graphite);
+  margin-top: 9px; display: flex; gap: 8px;
+}
+.figure figcaption b { color: var(--annotate); font-weight: 500; flex: none; }
+
+/* ── Thanh công cụ dính ──────────────────────────────────── */
+.toolbar {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding-top: 18px; margin-top: 26px; border-top: 1px solid var(--rule);
+}
+.btn {
+  font: 500 13px/1 var(--f-ui); padding: 9px 13px; min-height: 36px;
+  border-radius: var(--r-m); border: 1px solid var(--rule);
+  background: var(--sheet); color: var(--ink); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.btn:hover { background: var(--sheet-alt); }
+.btn-primary { background: var(--blueprint); border-color: var(--blueprint); color: #fff; }
+:root[data-theme="dark"] .btn-primary,
+:root:not([data-theme="light"]) .btn-primary { color: #0B121A; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .btn-primary { color: #fff; } }
+.btn-primary:hover { filter: brightness(1.08); }
+
+/* ── Bảng chỉ số (không phải "card") ─────────────────────── */
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--rule); border-radius: var(--r-m); overflow: hidden; }
+.metric { padding: 14px 15px; border-right: 1px solid var(--rule); background: var(--sheet); }
+.metric:last-child { border-right: 0; }
+.metric-k { font: 500 10px/1 var(--f-data); letter-spacing: .1em; color: var(--graphite-2); }
+.metric-v { font: 600 25px/1.1 var(--f-ui); font-variant-numeric: tabular-nums; margin-top: 8px; letter-spacing: -.02em; }
+.metric-s { font-size: 11.5px; color: var(--graphite); margin-top: 4px; }
+.metric.due .metric-v { color: var(--annotate); }
+.metric.streak .metric-v { color: var(--verdigris); }
+
+/* ── Danh sách môn học ───────────────────────────────────── */
+.rows { border: 1px solid var(--rule); border-radius: var(--r-m); overflow: hidden; margin-top: 20px; }
+.row { display: grid; grid-template-columns: 3px 1fr auto auto; align-items: center; gap: 14px; padding: 0; border-top: 1px solid var(--rule-soft); background: var(--sheet); }
+.row:first-child { border-top: 0; }
+.row:hover { background: var(--sheet-alt); }
+.row-stripe { align-self: stretch; }
+.row-main { padding: 12px 0; min-width: 0; }
+.row-title { font-weight: 500; font-size: 14px; }
+.row-sub { font: 400 11.5px/1.4 var(--f-data); color: var(--graphite); margin-top: 3px; }
+.row-num { font: 500 13px/1 var(--f-data); font-variant-numeric: tabular-nums; color: var(--graphite); }
+.row-end { padding-right: 15px; }
+
+.chip { font: 500 10.5px/1 var(--f-data); letter-spacing: .06em; padding: 5px 7px; border-radius: var(--r-s); white-space: nowrap; }
+.chip-done { background: var(--verdigris-w); color: var(--verdigris); }
+.chip-work { background: var(--ochre-w); color: var(--ochre); }
+.chip-fail { background: var(--annotate-w); color: var(--annotate); }
+
+/* ── Thẻ ôn tập ──────────────────────────────────────────── */
+.card-stage { display: grid; gap: 16px; max-width: 560px; }
+.flash {
+  border: 1px solid var(--rule); border-radius: var(--r-m);
+  background: var(--sheet); padding: 26px; min-height: 168px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.flash-src { font: 400 10.5px/1 var(--f-data); letter-spacing: .08em; color: var(--graphite-2); }
+.flash-q { font-family: var(--f-read); font-size: 21px; line-height: 1.4; }
+.flash-a { border-top: 1px dashed var(--rule); padding-top: 15px; font-family: var(--f-read); font-size: 15px; }
+.flash-a .gloss { color: var(--annotate); display: block; margin-top: 8px; font-size: 13.5px; }
+.rate { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.rate button {
+  font: 500 12.5px/1 var(--f-ui); padding: 12px 6px; min-height: 44px;
+  border-radius: var(--r-m); border: 1px solid var(--rule);
+  background: var(--sheet); color: var(--ink); cursor: pointer;
+}
+.rate button span { display: block; font: 400 10px/1 var(--f-data); color: var(--graphite-2); margin-top: 5px; }
+.rate button:hover { border-color: var(--ink); }
+
+/* ── Bảng màu ────────────────────────────────────────────── */
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 12px; }
+.sw { border: 1px solid var(--rule); border-radius: var(--r-m); overflow: hidden; background: var(--sheet); }
+.sw-chip { height: 52px; }
+.sw-meta { padding: 9px 11px; }
+.sw-name { font-size: 12.5px; font-weight: 500; }
+.sw-hex { font: 400 11px/1 var(--f-data); color: var(--graphite); margin-top: 4px; }
+.sw-use { font-size: 11px; color: var(--graphite); margin-top: 5px; }
+
+.type-rows { display: grid; gap: 14px; }
+.type-row { display: grid; grid-template-columns: 116px 1fr; gap: 18px; align-items: baseline; padding-bottom: 14px; border-bottom: 1px solid var(--rule-soft); }
+.type-row:last-child { border-bottom: 0; }
+.type-label { font: 500 10.5px/1.4 var(--f-data); letter-spacing: .08em; color: var(--graphite-2); }
+.type-demo-ui { font-family: var(--f-ui); font-size: 21px; font-weight: 600; }
+.type-demo-read { font-family: var(--f-read); font-size: 18px; }
+.type-demo-data { font-family: var(--f-data); font-size: 15px; }
+.type-note { font-size: 11.5px; color: var(--graphite); margin-top: 5px; font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; }
+
+.callout {
+  border-left: 3px solid var(--annotate); background: var(--annotate-w);
+  padding: 13px 16px; border-radius: 0 var(--r-m) var(--r-m) 0; margin-top: 20px;
+}
+.callout p { margin: 0; font-size: 13.5px; }
+.callout p + p { margin-top: 8px; }
+.callout strong { color: var(--annotate); }
+
+/* ── Điện thoại ──────────────────────────────────────────── */
+.phones { display: flex; gap: 22px; flex-wrap: wrap; }
+.phone { width: 258px; border: 1px solid var(--rule); border-radius: 18px; overflow: hidden; background: var(--sheet); box-shadow: var(--shadow); }
+.phone-top { background: var(--rail); color: var(--rail-ink); padding: 11px 14px; display: flex; align-items: center; gap: 8px; }
+.phone-top .brand-mark { width: 22px; height: 22px; font-size: 10px; }
+.phone-top b { font-size: 12.5px; font-weight: 600; }
+.phone-body { padding: 14px; min-height: 218px; }
+.phone-tabs { display: flex; border-top: 1px solid var(--rule); background: var(--sheet-alt); }
+.phone-tabs div { flex: 1; text-align: center; padding: 9px 2px 11px; font: 500 9px/1.3 var(--f-ui); color: var(--graphite-2); }
+.phone-tabs div.on { color: var(--annotate); box-shadow: inset 0 2px 0 var(--annotate); }
+.phone-tabs svg { width: 16px; height: 16px; display: block; margin: 0 auto 4px; stroke: currentColor; fill: none; stroke-width: 1.7; }
+
+@media (max-width: 820px) {
+  .app { grid-template-columns: 1fr; }
+  .rail { flex-direction: row; align-items: center; gap: 14px; overflow-x: auto; }
+  .rail .nav { flex-direction: row; }
+  .rail-foot { display: none; }
+  .sheet-grid { grid-template-columns: 1fr; }
+  .margin { border-left: 0; border-top: 1px dashed var(--rule); padding-left: 0; padding-top: 16px; margin-top: 20px; }
+  .note::before { display: none; }
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .metric:nth-child(2) { border-right: 0; }
+  .metric:nth-child(-n+2) { border-bottom: 1px solid var(--rule); }
+  .pane { padding: 20px 18px; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <h1 data-i18n="hero.t">Bản vẽ</h1>
+      <p data-i18n="hero.d">Hướng thiết kế đề xuất cho AI Study OS. Đổi ngôn ngữ và chế độ sáng/tối ở bên phải để xem thử.</p>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Language">
+        <button data-lang="vi" aria-pressed="true">VI</button>
+        <button data-lang="en" aria-pressed="false">EN</button>
+        <button data-lang="es" aria-pressed="false">ES</button>
+      </div>
+      <div class="seg" role="group" aria-label="Theme">
+        <button data-theme-btn="light" aria-pressed="true" data-i18n="ui.light">Sáng</button>
+        <button data-theme-btn="dark" aria-pressed="false" data-i18n="ui.dark">Tối</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ A-01 · Ý TƯỞNG ============ -->
+  <section class="plate">
+    <div class="plate-head"><span class="plate-ref">A-01</span><h2 data-i18n="p1.t">Ý tưởng</h2></div>
+    <p class="plate-note" data-i18n="p1.d">Sản phẩm này có một ý tưởng cốt lõi: định nghĩa giữ tiếng Anh, chú thích bằng tiếng mẹ đẻ. Giao diện nên nói đúng điều đó — nên nó mượn hình thức của một bản vẽ kiến trúc: phần vẽ ở giữa, ghi chú bút chì đỏ ở lề.</p>
+    <div class="callout">
+      <p data-i18n="p1.c1"><strong>Cột chính</strong> mang nội dung học thuật — tiếng Anh, chữ có chân, rộng 65 ký tự để đọc lâu không mỏi.</p>
+      <p data-i18n="p1.c2"><strong>Lề phải</strong> mang chú thích tiếng Việt, màu đỏ đất, nối với cột chính bằng đường gióng đứt nét — đúng cách kiến trúc sư ghi chú lên bản vẽ.</p>
+    </div>
+  </section>
+
+  <!-- ============ A-02 · TỜ TÓM TẮT ============ -->
+  <section class="plate">
+    <div class="plate-head"><span class="plate-ref">A-02</span><h2 data-i18n="p2.t">Màn hình đọc bản tóm tắt</h2></div>
+    <p class="plate-note" data-i18n="p2.d">Màn hình quan trọng nhất — nơi bạn ngồi 15 phút mỗi tối. Nền sáng như trang sách, kể cả khi phần còn lại của ứng dụng đang ở chế độ tối.</p>
+
+    <div class="frame">
+      <div class="app">
+        <aside class="rail">
+          <div class="brand">
+            <div class="brand-mark">AS</div>
+            <div>
+              <div class="brand-name">AI Study OS</div>
+              <div class="brand-sub">KIẾN TRÚC · K21</div>
+            </div>
+          </div>
+          <nav class="nav">
+            <a href="#" data-i18n="nav.today"><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>Hôm nay</a>
+            <a href="#" aria-current="page" data-i18n="nav.subjects"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 9h16M9 9v10"/></svg>Môn học</a>
+            <a href="#" data-i18n="nav.review"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>Ôn tập<span class="count">18</span></a>
+            <a href="#" data-i18n="nav.tutor"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>Trợ giảng</a>
+            <a href="#" data-i18n="nav.glossary"><svg viewBox="0 0 24 24"><path d="M5 4h13v16H5z"/><path d="M9 8h6M9 12h6"/></svg>Thuật ngữ</a>
+          </nav>
+          <div class="rail-foot">
+            <div class="avatar">K</div>
+            <div><div class="nm">Khôi Hoàng</div><div class="em">Lịch sử KT 2</div></div>
+          </div>
+        </aside>
+
+        <main class="pane" style="background:var(--sheet)">
+          <div class="pane-head">
+            <div>
+              <div class="eyebrow" data-i18n="sheet.ref">LỊCH SỬ KIẾN TRÚC 2 · BUỔI 07 · 24 SLIDE</div>
+              <h3>Le Corbusier — The Five Points</h3>
+            </div>
+            <span class="chip chip-done" data-i18n="chip.done">HOÀN THÀNH</span>
+          </div>
+
+          <div class="sheet-grid">
+            <div class="sheet-main">
+              <p>The five points define a structural system in which the load-bearing wall is replaced by a grid of slender columns. Freed from carrying load, the façade and the interior partitions can be arranged independently of the structure.</p>
+
+              <h4 data-i18n="sheet.terms">Thuật ngữ</h4>
+              <p><span class="term">Pilotis</span> — slender columns that lift the building volume off the ground, freeing the ground plane for circulation and planting.</p>
+              <p><span class="term">Brise-soleil</span> — a fixed external shading device that controls solar gain without blocking the view.</p>
+
+              <h4 data-i18n="sheet.formula">Ghi chú kỹ thuật</h4>
+              <div class="formula">grid 4.75 m o.c. · slab 180 mm · column ⌀ 260 mm</div>
+
+              <figure class="figure">
+                <svg viewBox="0 0 320 96" role="img" aria-label="Sơ đồ mặt cắt hệ pilotis">
+                  <line x1="8" y1="80" x2="312" y2="80" stroke="var(--graphite)" stroke-width="1"/>
+                  <rect x="24" y="22" width="272" height="9" fill="var(--blueprint)" opacity=".85"/>
+                  <rect x="24" y="48" width="272" height="9" fill="var(--blueprint)" opacity=".55"/>
+                  <g stroke="var(--graphite)" stroke-width="2">
+                    <line x1="46" y1="57" x2="46" y2="80"/><line x1="110" y1="57" x2="110" y2="80"/>
+                    <line x1="174" y1="57" x2="174" y2="80"/><line x1="238" y1="57" x2="238" y2="80"/>
+                    <line x1="296" y1="57" x2="296" y2="80"/>
+                  </g>
+                  <g stroke="var(--annotate)" stroke-width="1" stroke-dasharray="3 3">
+                    <line x1="46" y1="88" x2="110" y2="88"/>
+                  </g>
+                  <text x="78" y="84" text-anchor="middle" fill="var(--annotate)" font-family="JetBrains Mono, monospace" font-size="8">4.75 m</text>
+                </svg>
+                <figcaption><b>SL-11</b><span data-i18n="fig.cap">Mặt cắt: sàn đặt trên hệ cột, tầng trệt để trống</span></figcaption>
+              </figure>
+            </div>
+
+            <aside class="margin">
+              <div class="note">
+                <span class="note-lang">VI</span>
+                <div class="note-body">Tường chịu lực được thay bằng hệ cột mảnh. Vì tường không còn đỡ sàn nữa, mặt đứng và vách ngăn bên trong được bố trí tự do.</div>
+              </div>
+              <div class="note">
+                <span class="note-lang">VI</span>
+                <div class="note-body"><b>Pilotis</b> — hệ cột nâng khối nhà lên khỏi mặt đất, trả lại tầng trệt cho lưu tuyến và cây xanh.</div>
+              </div>
+              <div class="note">
+                <span class="note-lang">VI</span>
+                <div class="note-body"><b>Brise-soleil</b> — kết cấu che nắng cố định gắn ngoài mặt đứng, cản nắng mà không chắn tầm nhìn.</div>
+              </div>
+              <div class="note">
+                <span class="note-lang">VI</span>
+                <div class="note-body">o.c. = <i>on center</i>, khoảng cách tính từ tim cột này sang tim cột kia.</div>
+              </div>
+            </aside>
+          </div>
+
+          <div class="toolbar">
+            <button class="btn btn-primary" data-i18n="btn.cards">Tạo thẻ ghi nhớ</button>
+            <button class="btn" data-i18n="btn.quiz">Tạo câu hỏi</button>
+            <button class="btn" data-i18n="btn.print">In</button>
+            <button class="btn" data-i18n="btn.export">Tải .md</button>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ A-03 · HÔM NAY ============ -->
+  <section class="plate">
+    <div class="plate-head"><span class="plate-ref">A-03</span><h2 data-i18n="p3.t">Hôm nay</h2></div>
+    <p class="plate-note" data-i18n="p3.d">Trang chủ trả lời đúng một câu: hôm nay học gì. Con số đứng trước, danh sách đứng sau. Chỉ số cần hành động thì tô đỏ đất.</p>
+
+    <div class="frame"><div class="pane">
+      <div class="pane-head">
+        <div><div class="eyebrow" data-i18n="today.date">THỨ HAI · 08 THÁNG 9</div><h3 data-i18n="today.h">Chào Khôi</h3></div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric due"><div class="metric-k" data-i18n="m.due">CẦN ÔN</div><div class="metric-v">18</div><div class="metric-s" data-i18n="m.due2">thẻ đến hạn</div></div>
+        <div class="metric streak"><div class="metric-k" data-i18n="m.streak">CHUỖI</div><div class="metric-v">12</div><div class="metric-s" data-i18n="m.streak2">ngày liên tục</div></div>
+        <div class="metric"><div class="metric-k" data-i18n="m.terms">THUẬT NGỮ</div><div class="metric-v">247</div><div class="metric-s" data-i18n="m.terms2">đã thu thập</div></div>
+        <div class="metric"><div class="metric-k" data-i18n="m.exam">SẮP THI</div><div class="metric-v">9</div><div class="metric-s" data-i18n="m.exam2">ngày · Lịch sử KT 2</div></div>
+      </div>
+
+      <div class="rows">
+        <div class="row">
+          <div class="row-stripe" style="background:var(--annotate)"></div>
+          <div class="row-main"><div class="row-title">Lịch sử Kiến trúc 2</div><div class="row-sub" data-i18n="row.s1">BUỔI 07 · LE CORBUSIER</div></div>
+          <div class="row-num">18</div>
+          <div class="row-end"><span class="chip chip-done" data-i18n="chip.done">HOÀN THÀNH</span></div>
+        </div>
+        <div class="row">
+          <div class="row-stripe" style="background:var(--blueprint)"></div>
+          <div class="row-main"><div class="row-title">Cấu tạo Kiến trúc 1</div><div class="row-sub" data-i18n="row.s2">BUỔI 12 · CHI TIẾT MÁI</div></div>
+          <div class="row-num">0</div>
+          <div class="row-end"><span class="chip chip-work" data-i18n="chip.work">ĐANG TÓM TẮT</span></div>
+        </div>
+        <div class="row">
+          <div class="row-stripe" style="background:var(--verdigris)"></div>
+          <div class="row-main"><div class="row-title">Vật lý Kiến trúc</div><div class="row-sub" data-i18n="row.s3">BUỔI 04 · ÂM HỌC PHÒNG</div></div>
+          <div class="row-num">6</div>
+          <div class="row-end"><span class="chip chip-done" data-i18n="chip.done">HOÀN THÀNH</span></div>
+        </div>
+      </div>
+    </div></div>
+  </section>
+
+  <!-- ============ A-04 · ÔN TẬP + ĐIỆN THOẠI ============ -->
+  <section class="plate">
+    <div class="plate-head"><span class="plate-ref">A-04</span><h2 data-i18n="p4.t">Ôn tập và điện thoại</h2></div>
+    <p class="plate-note" data-i18n="p4.d">Ôn tập là việc làm hằng ngày, phần lớn trên điện thoại. Bốn nút đánh giá đủ rộng để bấm bằng ngón cái, kèm luôn khoảng cách lần ôn tới.</p>
+
+    <div class="frame"><div class="pane">
+      <div style="display:flex;gap:34px;flex-wrap:wrap;align-items:flex-start">
+
+        <div class="card-stage" style="flex:1;min-width:280px">
+          <div class="flash">
+            <span class="flash-src">LỊCH SỬ KT 2 · SL-11</span>
+            <div class="flash-q">What is <i>pilotis</i>?</div>
+            <div class="flash-a">
+              Slender columns that lift the building volume off the ground.
+              <span class="gloss">Hệ cột mảnh nâng khối nhà lên khỏi mặt đất.</span>
+            </div>
+          </div>
+          <div class="rate">
+            <button data-i18n="r.again">Quên<span>10 phút</span></button>
+            <button data-i18n="r.hard">Khó<span>1 ngày</span></button>
+            <button data-i18n="r.good">Được<span>4 ngày</span></button>
+            <button data-i18n="r.easy">Dễ<span>10 ngày</span></button>
+          </div>
+        </div>
+
+        <div class="phones">
+          <div class="phone">
+            <div class="phone-top"><div class="brand-mark">AS</div><b data-i18n="nav.review">Ôn tập</b></div>
+            <div class="phone-body">
+              <div style="font:400 10px/1 var(--f-data);letter-spacing:.08em;color:var(--graphite-2)">LỊCH SỬ KT 2 · SL-11</div>
+              <div style="font-family:var(--f-read);font-size:17px;margin-top:12px;line-height:1.4">What is <i>brise-soleil</i>?</div>
+              <div style="border-top:1px dashed var(--rule);margin-top:14px;padding-top:12px;font-family:var(--f-read);font-size:13px">
+                A fixed external shading device.
+                <span style="color:var(--annotate);display:block;margin-top:6px;font-size:12.5px">Kết cấu che nắng cố định.</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:16px">
+                <div style="border:1px solid var(--rule);border-radius:5px;padding:9px 2px;text-align:center;font:500 10px/1 var(--f-ui)" data-i18n="r.again2">Quên</div>
+                <div style="border:1px solid var(--rule);border-radius:5px;padding:9px 2px;text-align:center;font:500 10px/1 var(--f-ui)" data-i18n="r.hard2">Khó</div>
+                <div style="border:1px solid var(--rule);border-radius:5px;padding:9px 2px;text-align:center;font:500 10px/1 var(--f-ui)" data-i18n="r.good2">Được</div>
+                <div style="border:1px solid var(--rule);border-radius:5px;padding:9px 2px;text-align:center;font:500 10px/1 var(--f-ui)" data-i18n="r.easy2">Dễ</div>
+              </div>
+            </div>
+            <div class="phone-tabs">
+              <div><svg viewBox="0 0 24 24"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg><span data-i18n="nav.today">Hôm nay</span></div>
+              <div><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 9h16"/></svg><span data-i18n="nav.subjects">Môn học</span></div>
+              <div class="on"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg><span data-i18n="nav.review">Ôn tập</span></div>
+              <div><svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg><span data-i18n="nav.tutor">Trợ giảng</span></div>
+              <div><svg viewBox="0 0 24 24"><path d="M5 4h13v16H5z"/><path d="M9 8h6"/></svg><span data-i18n="nav.glossary">Thuật ngữ</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div></div>
+    <div class="callout">
+      <p data-i18n="p4.c"><strong>Đã sửa:</strong> thanh dưới cùng trên điện thoại giờ có nút <b>Ôn tập</b> — bản cũ thiếu đúng cái quan trọng nhất. Mọi vùng chạm tối thiểu 44px.</p>
+    </div>
+  </section>
+
+  <!-- ============ A-05 · MÀU ============ -->
+  <section class="plate">
+    <div class="plate-head"><span class="plate-ref">A-05</span><h2 data-i18n="p5.t">Bảng màu</h2></div>
+    <p class="plate-note" data-i18n="p5.d">Sáu màu, mỗi màu một nhiệm vụ. Đỏ đất chỉ dùng cho tiếng mẹ đẻ và việc cần làm — không dùng làm màu trang trí.</p>
+    <div class="swatches">
+      <div class="sw"><div class="sw-chip" style="background:var(--ink)"></div><div class="sw-meta"><div class="sw-name">Mực chì</div><div class="sw-hex">#12181F</div><div class="sw-use" data-i18n="sw.1">Chữ, thanh điều hướng</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--paper);border-bottom:1px solid var(--rule)"></div><div class="sw-meta"><div class="sw-name">Giấy can</div><div class="sw-hex">#FAF7F0</div><div class="sw-use" data-i18n="sw.2">Nền trang</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--blueprint)"></div><div class="sw-meta"><div class="sw-name">Lam bản vẽ</div><div class="sw-hex">#1B4F8C</div><div class="sw-use" data-i18n="sw.3">Thuật ngữ tiếng Anh, nút chính</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--annotate)"></div><div class="sw-meta"><div class="sw-name">Đỏ đất</div><div class="sw-hex">#B8412A</div><div class="sw-use" data-i18n="sw.4">Chú thích bản ngữ, việc cần làm</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--verdigris)"></div><div class="sw-meta"><div class="sw-name">Xanh đồng</div><div class="sw-hex">#2F6B54</div><div class="sw-use" data-i18n="sw.5">Đã thuộc, hoàn thành</div></div></div>
+      <div class="sw"><div class="sw-chip" style="background:var(--ochre)"></div><div class="sw-meta"><div class="sw-name">Hoàng thổ</div><div class="sw-hex">#9A6B18</div><div class="sw-use" data-i18n="sw.6">Đang xử lý, cảnh báo</div></div></div>
+    </div>
+  </section>
+
+  <!-- ============ A-06 · CHỮ ============ -->
+  <section class="plate">
+    <div class="plate-head"><span class="plate-ref">A-06</span><h2 data-i18n="p6.t">Chữ</h2></div>
+    <p class="plate-note" data-i18n="p6.d">Ba bộ chữ, ba vai trò. Cả ba đều hỗ trợ đầy đủ dấu tiếng Việt — đây chính là lỗi của bản hiện tại, khi chữ có dấu phải mượn font hệ thống.</p>
+    <div class="type-rows">
+      <div class="type-row">
+        <div class="type-label">ARCHIVO<div class="type-note" data-i18n="ty.1">Giao diện, tiêu đề</div></div>
+        <div><div class="type-demo-ui">Tạo thẻ ghi nhớ · Ôn tập hôm nay</div></div>
+      </div>
+      <div class="type-row">
+        <div class="type-label">SOURCE SERIF 4<div class="type-note" data-i18n="ty.2">Nội dung đọc lâu</div></div>
+        <div><div class="type-demo-read">Hệ cột mảnh nâng khối nhà lên khỏi mặt đất, trả lại tầng trệt cho lưu tuyến.</div></div>
+      </div>
+      <div class="type-row">
+        <div class="type-label">JETBRAINS MONO<div class="type-note" data-i18n="ty.3">Số liệu, công thức, mã slide</div></div>
+        <div><div class="type-demo-data">SL-11 · 4.75 m o.c. · ⌀ 260 mm</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ A-07 · ĐỔI NGÔN NGỮ ============ -->
+  <section class="plate">
+    <div class="plate-head"><span class="plate-ref">A-07</span><h2 data-i18n="p7.t">Đổi ngôn ngữ</h2></div>
+    <p class="plate-note" data-i18n="p7.d">Nút VI / EN / ES ở đầu trang này là thật — bấm thử. Nó đổi toàn bộ chữ của giao diện. Nội dung học thuật giữ nguyên tiếng Anh, chú thích giữ nguyên tiếng Việt: đó là hai thứ khác nhau.</p>
+    <div class="callout">
+      <p data-i18n="p7.c1"><strong>Ngôn ngữ giao diện</strong> — nút, menu, nhãn. Đây là phần bạn đã chọn làm.</p>
+      <p data-i18n="p7.c2"><strong>Ngôn ngữ chú thích</strong> — ghi chú ở lề. Hiện cố định tiếng Việt. Đổi được cái này thì sinh viên Tây Ban Nha cũng dùng app của bạn được, nhưng cần sửa backend nên để sau.</p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+const DICT = {
+  vi: {
+    "hero.t":"Bản vẽ",
+    "hero.d":"Hướng thiết kế đề xuất cho AI Study OS. Đổi ngôn ngữ và chế độ sáng/tối ở bên phải để xem thử.",
+    "ui.light":"Sáng","ui.dark":"Tối",
+    "p1.t":"Ý tưởng",
+    "p1.d":"Sản phẩm này có một ý tưởng cốt lõi: định nghĩa giữ tiếng Anh, chú thích bằng tiếng mẹ đẻ. Giao diện nên nói đúng điều đó — nên nó mượn hình thức của một bản vẽ kiến trúc: phần vẽ ở giữa, ghi chú bút chì đỏ ở lề.",
+    "p1.c1":"<strong>Cột chính</strong> mang nội dung học thuật — tiếng Anh, chữ có chân, rộng 65 ký tự để đọc lâu không mỏi.",
+    "p1.c2":"<strong>Lề phải</strong> mang chú thích tiếng Việt, màu đỏ đất, nối với cột chính bằng đường gióng đứt nét — đúng cách kiến trúc sư ghi chú lên bản vẽ.",
+    "p2.t":"Màn hình đọc bản tóm tắt",
+    "p2.d":"Màn hình quan trọng nhất — nơi bạn ngồi 15 phút mỗi tối. Nền sáng như trang sách, kể cả khi phần còn lại của ứng dụng đang ở chế độ tối.",
+    "nav.today":"Hôm nay","nav.subjects":"Môn học","nav.review":"Ôn tập","nav.tutor":"Trợ giảng","nav.glossary":"Thuật ngữ",
+    "sheet.ref":"LỊCH SỬ KIẾN TRÚC 2 · BUỔI 07 · 24 SLIDE",
+    "sheet.terms":"Thuật ngữ","sheet.formula":"Ghi chú kỹ thuật",
+    "fig.cap":"Mặt cắt: sàn đặt trên hệ cột, tầng trệt để trống",
+    "chip.done":"HOÀN THÀNH","chip.work":"ĐANG TÓM TẮT",
+    "btn.cards":"Tạo thẻ ghi nhớ","btn.quiz":"Tạo câu hỏi","btn.print":"In","btn.export":"Tải .md",
+    "p3.t":"Hôm nay",
+    "p3.d":"Trang chủ trả lời đúng một câu: hôm nay học gì. Con số đứng trước, danh sách đứng sau. Chỉ số cần hành động thì tô đỏ đất.",
+    "today.date":"THỨ HAI · 08 THÁNG 9","today.h":"Chào Khôi",
+    "m.due":"CẦN ÔN","m.due2":"thẻ đến hạn","m.streak":"CHUỖI","m.streak2":"ngày liên tục",
+    "m.terms":"THUẬT NGỮ","m.terms2":"đã thu thập","m.exam":"SẮP THI","m.exam2":"ngày · Lịch sử KT 2",
+    "row.s1":"BUỔI 07 · LE CORBUSIER","row.s2":"BUỔI 12 · CHI TIẾT MÁI","row.s3":"BUỔI 04 · ÂM HỌC PHÒNG",
+    "p4.t":"Ôn tập và điện thoại",
+    "p4.d":"Ôn tập là việc làm hằng ngày, phần lớn trên điện thoại. Bốn nút đánh giá đủ rộng để bấm bằng ngón cái, kèm luôn khoảng cách lần ôn tới.",
+    "p4.c":"<strong>Đã sửa:</strong> thanh dưới cùng trên điện thoại giờ có nút <b>Ôn tập</b> — bản cũ thiếu đúng cái quan trọng nhất. Mọi vùng chạm tối thiểu 44px.",
+    "r.again":"Quên<span>10 phút</span>","r.hard":"Khó<span>1 ngày</span>","r.good":"Được<span>4 ngày</span>","r.easy":"Dễ<span>10 ngày</span>",
+    "r.again2":"Quên","r.hard2":"Khó","r.good2":"Được","r.easy2":"Dễ",
+    "p5.t":"Bảng màu",
+    "p5.d":"Sáu màu, mỗi màu một nhiệm vụ. Đỏ đất chỉ dùng cho tiếng mẹ đẻ và việc cần làm — không dùng làm màu trang trí.",
+    "sw.1":"Chữ, thanh điều hướng","sw.2":"Nền trang","sw.3":"Thuật ngữ tiếng Anh, nút chính",
+    "sw.4":"Chú thích bản ngữ, việc cần làm","sw.5":"Đã thuộc, hoàn thành","sw.6":"Đang xử lý, cảnh báo",
+    "p6.t":"Chữ",
+    "p6.d":"Ba bộ chữ, ba vai trò. Cả ba đều hỗ trợ đầy đủ dấu tiếng Việt — đây chính là lỗi của bản hiện tại, khi chữ có dấu phải mượn font hệ thống.",
+    "ty.1":"Giao diện, tiêu đề","ty.2":"Nội dung đọc lâu","ty.3":"Số liệu, công thức, mã slide",
+    "p7.t":"Đổi ngôn ngữ",
+    "p7.d":"Nút VI / EN / ES ở đầu trang này là thật — bấm thử. Nó đổi toàn bộ chữ của giao diện. Nội dung học thuật giữ nguyên tiếng Anh, chú thích giữ nguyên tiếng Việt: đó là hai thứ khác nhau.",
+    "p7.c1":"<strong>Ngôn ngữ giao diện</strong> — nút, menu, nhãn. Đây là phần bạn đã chọn làm.",
+    "p7.c2":"<strong>Ngôn ngữ chú thích</strong> — ghi chú ở lề. Hiện cố định tiếng Việt. Đổi được cái này thì sinh viên Tây Ban Nha cũng dùng app của bạn được, nhưng cần sửa backend nên để sau."
+  },
+  en: {
+    "hero.t":"Drawing Set",
+    "hero.d":"Proposed design direction for AI Study OS. Switch language and theme on the right to try it.",
+    "ui.light":"Light","ui.dark":"Dark",
+    "p1.t":"The idea",
+    "p1.d":"This product has one core idea: definitions stay in English, annotations come in your own language. The interface should say exactly that — so it borrows the form of an architectural drawing: the drawing in the middle, red pencil notes in the margin.",
+    "p1.c1":"<strong>The main column</strong> carries the academic content — English, a serif face, 65 characters wide so long reading stays comfortable.",
+    "p1.c2":"<strong>The right margin</strong> carries the Vietnamese annotation in oxide red, tied to the main column by a dashed leader — the way an architect marks up a drawing.",
+    "p2.t":"Reading a summary",
+    "p2.d":"The screen that matters most — where you sit for 15 minutes each evening. Page-light ground, even when the rest of the app is dark.",
+    "nav.today":"Today","nav.subjects":"Subjects","nav.review":"Review","nav.tutor":"Tutor","nav.glossary":"Glossary",
+    "sheet.ref":"HISTORY OF ARCHITECTURE 2 · SESSION 07 · 24 SLIDES",
+    "sheet.terms":"Key terms","sheet.formula":"Technical notes",
+    "fig.cap":"Section: slab carried on columns, ground level left open",
+    "chip.done":"COMPLETE","chip.work":"SUMMARISING",
+    "btn.cards":"Make flashcards","btn.quiz":"Make questions","btn.print":"Print","btn.export":"Download .md",
+    "p3.t":"Today",
+    "p3.d":"The home screen answers one question: what do I study today. Numbers first, list second. Anything needing action is oxide red.",
+    "today.date":"MONDAY · 8 SEPTEMBER","today.h":"Hello, Khôi",
+    "m.due":"DUE","m.due2":"cards to review","m.streak":"STREAK","m.streak2":"days running",
+    "m.terms":"TERMS","m.terms2":"collected","m.exam":"EXAM IN","m.exam2":"days · Arch History 2",
+    "row.s1":"SESSION 07 · LE CORBUSIER","row.s2":"SESSION 12 · ROOF DETAILS","row.s3":"SESSION 04 · ROOM ACOUSTICS",
+    "p4.t":"Review and mobile",
+    "p4.d":"Review is the daily habit, mostly on a phone. Four rating buttons wide enough for a thumb, each showing when the card comes back.",
+    "p4.c":"<strong>Fixed:</strong> the mobile tab bar now has <b>Review</b> — the old one was missing exactly the thing you use most. Every touch target is at least 44px.",
+    "r.again":"Again<span>10 min</span>","r.hard":"Hard<span>1 day</span>","r.good":"Good<span>4 days</span>","r.easy":"Easy<span>10 days</span>",
+    "r.again2":"Again","r.hard2":"Hard","r.good2":"Good","r.easy2":"Easy",
+    "p5.t":"Palette",
+    "p5.d":"Six colours, one job each. Oxide red is reserved for your own language and for what needs doing — never decoration.",
+    "sw.1":"Text, navigation rail","sw.2":"Page ground","sw.3":"English terms, primary buttons",
+    "sw.4":"Native annotation, action needed","sw.5":"Learned, complete","sw.6":"Processing, warning",
+    "p6.t":"Type",
+    "p6.d":"Three families, three roles. All three carry full Vietnamese diacritics — which is exactly what the current build gets wrong, borrowing a system font for accented letters.",
+    "ty.1":"Interface, headings","ty.2":"Long-form reading","ty.3":"Figures, formulas, slide refs",
+    "p7.t":"Switching language",
+    "p7.d":"The VI / EN / ES control at the top of this page is real — try it. It changes every word of the interface. Academic content stays English and annotations stay Vietnamese: those are two different things.",
+    "p7.c1":"<strong>Interface language</strong> — buttons, menus, labels. This is the part you chose to build.",
+    "p7.c2":"<strong>Annotation language</strong> — the margin notes. Currently fixed to Vietnamese. Making this configurable would open the app to Spanish students too, but it needs backend work, so it comes later."
+  },
+  es: {
+    "hero.t":"Juego de planos",
+    "hero.d":"Dirección de diseño propuesta para AI Study OS. Cambia el idioma y el tema a la derecha para probarlo.",
+    "ui.light":"Claro","ui.dark":"Oscuro",
+    "p1.t":"La idea",
+    "p1.d":"Este producto tiene una idea central: las definiciones se quedan en inglés, las anotaciones vienen en tu propio idioma. La interfaz debería decir justo eso — por eso toma la forma de un plano de arquitectura: el dibujo en el centro, las notas a lápiz rojo en el margen.",
+    "p1.c1":"<strong>La columna principal</strong> lleva el contenido académico — inglés, tipografía con serifa, 65 caracteres de ancho para leer largo rato sin cansarse.",
+    "p1.c2":"<strong>El margen derecho</strong> lleva la anotación en rojo óxido, unida a la columna por una línea de guía discontinua — como un arquitecto anota un plano.",
+    "p2.t":"Leer un resumen",
+    "p2.d":"La pantalla más importante — donde te sientas 15 minutos cada noche. Fondo claro como una página, aunque el resto de la app esté en oscuro.",
+    "nav.today":"Hoy","nav.subjects":"Asignaturas","nav.review":"Repasar","nav.tutor":"Tutor","nav.glossary":"Glosario",
+    "sheet.ref":"HISTORIA DE LA ARQUITECTURA 2 · SESIÓN 07 · 24 DIAPOSITIVAS",
+    "sheet.terms":"Términos clave","sheet.formula":"Notas técnicas",
+    "fig.cap":"Sección: losa sobre pilares, planta baja libre",
+    "chip.done":"COMPLETO","chip.work":"RESUMIENDO",
+    "btn.cards":"Crear tarjetas","btn.quiz":"Crear preguntas","btn.print":"Imprimir","btn.export":"Descargar .md",
+    "p3.t":"Hoy",
+    "p3.d":"La pantalla de inicio responde una sola pregunta: qué estudio hoy. Primero los números, después la lista. Lo que requiere acción va en rojo óxido.",
+    "today.date":"LUNES · 8 DE SEPTIEMBRE","today.h":"Hola, Khôi",
+    "m.due":"PENDIENTE","m.due2":"tarjetas por repasar","m.streak":"RACHA","m.streak2":"días seguidos",
+    "m.terms":"TÉRMINOS","m.terms2":"recogidos","m.exam":"EXAMEN EN","m.exam2":"días · Hist. Arq. 2",
+    "row.s1":"SESIÓN 07 · LE CORBUSIER","row.s2":"SESIÓN 12 · DETALLES DE CUBIERTA","row.s3":"SESIÓN 04 · ACÚSTICA DE SALAS",
+    "p4.t":"Repaso y móvil",
+    "p4.d":"El repaso es el hábito diario, casi siempre en el móvil. Cuatro botones anchos para el pulgar, cada uno indica cuándo vuelve la tarjeta.",
+    "p4.c":"<strong>Corregido:</strong> la barra inferior del móvil ahora tiene <b>Repasar</b> — a la versión anterior le faltaba justo lo que más se usa. Cada zona táctil mide al menos 44px.",
+    "r.again":"Otra vez<span>10 min</span>","r.hard":"Difícil<span>1 día</span>","r.good":"Bien<span>4 días</span>","r.easy":"Fácil<span>10 días</span>",
+    "r.again2":"Otra vez","r.hard2":"Difícil","r.good2":"Bien","r.easy2":"Fácil",
+    "p5.t":"Paleta",
+    "p5.d":"Seis colores, una función cada uno. El rojo óxido se reserva para tu propio idioma y para lo que hay que hacer — nunca como decoración.",
+    "sw.1":"Texto, barra de navegación","sw.2":"Fondo de página","sw.3":"Términos en inglés, botones principales",
+    "sw.4":"Anotación nativa, acción pendiente","sw.5":"Aprendido, completo","sw.6":"Procesando, aviso",
+    "p6.t":"Tipografía",
+    "p6.d":"Tres familias, tres papeles. Las tres soportan los diacríticos vietnamitas completos — justo lo que falla en la versión actual, que presta una fuente del sistema para las letras acentuadas.",
+    "ty.1":"Interfaz, títulos","ty.2":"Lectura larga","ty.3":"Cifras, fórmulas, referencias",
+    "p7.t":"Cambiar de idioma",
+    "p7.d":"El control VI / EN / ES arriba es real — pruébalo. Cambia cada palabra de la interfaz. El contenido académico sigue en inglés y las anotaciones en vietnamita: son dos cosas distintas.",
+    "p7.c1":"<strong>Idioma de la interfaz</strong> — botones, menús, etiquetas. Esta es la parte que elegiste construir.",
+    "p7.c2":"<strong>Idioma de la anotación</strong> — las notas del margen. Ahora fijo en vietnamita. Hacerlo configurable abriría la app también a estudiantes españoles, pero requiere tocar el backend, así que va después."
+  }
+};
+
+const LOCALE = { vi: 'vi', en: 'en', es: 'es' };
+
+function setLang(lang) {
+  const d = DICT[lang];
+  document.documentElement.lang = LOCALE[lang];
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const v = d[el.getAttribute('data-i18n')];
+    if (v !== undefined) el.innerHTML = v;
+  });
+  document.querySelectorAll('[data-lang]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  try { localStorage.setItem('dp-lang', lang); } catch (e) {}
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  document.querySelectorAll('[data-theme-btn]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.themeBtn === theme)));
+  try { localStorage.setItem('dp-theme', theme); } catch (e) {}
+}
+
+document.querySelectorAll('[data-lang]').forEach(b =>
+  b.addEventListener('click', () => setLang(b.dataset.lang)));
+document.querySelectorAll('[data-theme-btn]').forEach(b =>
+  b.addEventListener('click', () => setTheme(b.dataset.themeBtn)));
+
+let savedLang = 'vi', savedTheme = null;
+try {
+  savedLang = localStorage.getItem('dp-lang') || 'vi';
+  savedTheme = localStorage.getItem('dp-theme');
+} catch (e) {}
+
+setLang(DICT[savedLang] ? savedLang : 'vi');
+if (savedTheme) {
+  setTheme(savedTheme);
+} else {
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.querySelectorAll('[data-theme-btn]').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.themeBtn === (prefersDark ? 'dark' : 'light'))));
+}
+</script>
