@@ -12,8 +12,10 @@ import {
   AlertCircle,
   GraduationCap,
   ListChecks,
+  RotateCw,
 } from 'lucide-react';
 import { QuizRunner, type Quiz } from '@/components/QuizRunner';
+import { StudyGuideView, type StudyGuide } from '@/components/StudyGuideView';
 import {
   apiGet,
   apiSend,
@@ -77,8 +79,28 @@ interface SlideSession {
   title: string;
   status: string;
   errorMessage?: string | null;
-  summary?: SlideSummary | null;
+  /**
+   * Hai đời dữ liệu cùng nằm ở đây: bản tóm tắt cũ (không có `version`) và
+   * study guide mới (`version: 2`). Bản cũ vẫn phải mở được nên không đổi
+   * kiểu, chỉ thêm nhánh.
+   */
+  summary?: SlideSummary | StudyGuide | null;
   subject?: { id: string; name: string; color: string };
+}
+
+/** Tiến độ khi đang giảng bài — backend trả về sau mỗi nhịp xử lý. */
+interface ProcessProgress {
+  id: string;
+  status: string;
+  done: number;
+  total: number;
+  errorMessage?: string | null;
+}
+
+function isStudyGuide(
+  summary: SlideSummary | StudyGuide | null | undefined,
+): summary is StudyGuide {
+  return !!summary && (summary as StudyGuide).version === 2;
 }
 
 /**
@@ -335,23 +357,65 @@ function SubjectView({
   onRefresh: () => void;
 }) {
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(
+    null,
+  );
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  /**
+   * Tải file lên rồi GỌI LẶP `/process` cho tới khi xong.
+   *
+   * VÌ SAO PHẢI LẶP: giảng kỹ cả tập slide mất vài phút, dài hơn giới hạn thời
+   * gian của một lượt gọi trên Vercel. Backend làm từng nhịp ~40 giây rồi trả
+   * tiến độ; ở đây chỉ việc gọi tiếp. Đứt mạng giữa chừng cũng không mất công
+   * đã làm — mở lại là chạy tiếp từ chỗ dở.
+   */
   const upload = async (file: File) => {
     setUploading(true);
     setErr(null);
+    setProgress({ done: 0, total: 1 });
+
     try {
       const form = new FormData();
       form.append('file', file);
       form.append('title', file.name.replace(/\.[^.]+$/, ''));
-      await apiUpload(`/subjects/${subject.id}/slides`, form);
+      form.append('depth', 'deep');
+
+      const session = await apiUpload<{ id: string }>(
+        `/subjects/${subject.id}/slides`,
+        form,
+      );
+      onRefresh();
+      await runProcessLoop(session.id, setProgress);
       onRefresh();
     } catch (e) {
       setErr((e as Error).message);
+      onRefresh();
     } finally {
       setUploading(false);
+      setProgress(null);
       if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  /**
+   * Chạy tiếp một bản còn dở (đóng tab giữa chừng, mất mạng, máy chủ hết giờ).
+   * Không có nút này thì bản đó kẹt ở "Đang xử lý" vĩnh viễn.
+   */
+  const resume = async (id: string) => {
+    setUploading(true);
+    setErr(null);
+    setProgress({ done: 0, total: 1 });
+    try {
+      await runProcessLoop(id, setProgress);
+      onRefresh();
+    } catch (e) {
+      setErr((e as Error).message);
+      onRefresh();
+    } finally {
+      setUploading(false);
+      setProgress(null);
     }
   };
 
@@ -426,7 +490,26 @@ function SubjectView({
           <>
             <Loader2 className="h-7 w-7 animate-spin text-blueprint" />
             <span className="text-sm text-graphite">
-              Đang đọc &amp; tóm tắt slide... (có thể mất ~30 giây)
+              {progressLabel(progress)}
+            </span>
+            {/* Thanh tiến độ kiểu thước tỉ lệ trên bản vẽ: có vạch chia, để
+                thấy rõ còn bao nhiêu phần chứ không chỉ là vệt chạy vô định. */}
+            <span className="block h-1.5 w-full max-w-sm overflow-hidden rounded-full bg-rule-soft">
+              <span
+                className="block h-full rounded-full bg-blueprint transition-[width] duration-500"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.round(
+                      ((progress?.done || 0) / Math.max(progress?.total || 1, 1)) *
+                        100,
+                    ),
+                  )}%`,
+                }}
+              />
+            </span>
+            <span className="font-data text-[11px] text-graphite-soft">
+              Đừng đóng trang — bài càng dài thì càng lâu (2–4 phút là bình thường)
             </span>
           </>
         ) : (
@@ -434,6 +517,9 @@ function SubjectView({
             <UploadCloud className="h-7 w-7 text-blueprint" />
             <span className="text-sm text-graphite">
               Tải slide hôm nay (PDF, PPTX, ảnh)
+            </span>
+            <span className="font-data text-[11px] text-graphite-soft">
+              Đọc hết tài liệu, giảng từng phần kèm ví dụ và hình minh hoạ
             </span>
           </>
         )}
@@ -470,6 +556,16 @@ function SubjectView({
                 </button>
               </div>
               <div className="flex items-center gap-1.5">
+                {(s.status === 'processing' || s.status === 'failed') && (
+                  <button
+                    onClick={() => resume(s.id)}
+                    disabled={uploading}
+                    className="bv-btn min-h-[36px] px-2.5 text-[12.5px]"
+                  >
+                    <RotateCw className="h-3.5 w-3.5" />
+                    Tiếp tục
+                  </button>
+                )}
                 <StatusBadge status={s.status} />
                 <button
                   onClick={() => del(s.id)}
@@ -485,6 +581,45 @@ function SubjectView({
       )}
     </div>
   );
+}
+
+/**
+ * Gọi lặp `/process` cho tới khi bản tóm tắt xong (hoặc lỗi).
+ *
+ * Một lượt gọi chỉ làm ~40 giây rồi trả tiến độ, nên vòng lặp này chính là
+ * thứ đưa bài đi hết chặng — mỗi vòng là một nhịp công việc đã được lưu lại.
+ */
+async function runProcessLoop(
+  sessionId: string,
+  onProgress: (p: { done: number; total: number }) => void,
+): Promise<void> {
+  // Trần số vòng để không quay vô tận nếu máy chủ kẹt ở một trạng thái.
+  for (let i = 0; i < 80; i++) {
+    const step = await apiSend<ProcessProgress>(
+      `/slides/${sessionId}/process`,
+      'POST',
+    );
+    onProgress({ done: step.done, total: Math.max(step.total, 1) });
+
+    if (step.status === 'completed') return;
+    if (step.status === 'failed') {
+      throw new Error(step.errorMessage || 'Xử lý thất bại');
+    }
+  }
+  throw new Error(
+    'Bài quá dài nên chưa xử lý xong. Mở lại môn học và bấm "Tiếp tục" để chạy nốt.',
+  );
+}
+
+/**
+ * Lời nhắc theo giai đoạn. Người dùng không cần biết "lô", "chunk" là gì —
+ * chỉ cần biết máy đang làm gì và còn bao nhiêu.
+ */
+function progressLabel(progress: { done: number; total: number } | null): string {
+  if (!progress || progress.total <= 1) return 'Đang đọc file…';
+  if (progress.done === 0) return 'Đang đọc file và tách hình…';
+  if (progress.done >= progress.total - 1) return 'Đang viết phần tổng quan…';
+  return `Đang giảng phần ${progress.done}/${progress.total - 1}…`;
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -654,7 +789,11 @@ function SessionView({
 
       {!s ? (
         <ErrorBanner message="Bản tóm tắt chưa sẵn sàng." />
+      ) : isStudyGuide(s) ? (
+        /* Study guide đời 2 — có đoạn văn giảng bài, hình và ví dụ. */
+        <StudyGuideView guide={s} />
       ) : (
+        /* Bản tóm tắt đời cũ: vẫn mở được, chỉ có gạch đầu dòng. */
         <div className="space-y-8">
           {/* ── Tổng quan ─────────────────────────────────────────
               Cột chính giữ bản tiếng Anh; bản tiếng Việt ra lề phải.

@@ -1,21 +1,31 @@
-import { SlideSummary } from './summary.types';
+import {
+  GuideFigure,
+  isStudyGuide,
+  SlideSummary,
+  StudyGuide,
+} from './summary.types';
 
 /**
- * Renders a structured SlideSummary into GitHub-flavoured Markdown.
- * This markdown is persisted and is the single source of truth for downloads.
+ * Kết xuất bài học ra Markdown — đây là bản được lưu và dùng cho mọi lượt tải
+ * xuống (.md và .html in ra PDF).
+ *
+ * Nhận cả hai đời dữ liệu: study guide mới (v2, có đoạn văn + hình) và bản
+ * tóm tắt cũ (v1, chỉ có gạch đầu dòng) để mở lại bài đã tạo trước đây.
  */
 export function renderSummaryMarkdown(
-  summary: SlideSummary,
+  summary: SlideSummary | StudyGuide,
   meta: { subjectName: string; date: Date; sourceFileName?: string | null },
 ): string {
   const lines: string[] = [];
   const dateStr = meta.date.toISOString().slice(0, 10);
+  const guide = isStudyGuide(summary) ? summary : null;
 
   lines.push(`# ${summary.title || 'Slide Summary'}`);
   lines.push('');
   lines.push(
     `> **Môn học:** ${meta.subjectName}  •  **Ngày:** ${dateStr}` +
-      (meta.sourceFileName ? `  •  **Nguồn:** ${meta.sourceFileName}` : ''),
+      (meta.sourceFileName ? `  •  **Nguồn:** ${meta.sourceFileName}` : '') +
+      (guide?.sourcePages ? `  •  **Đã đọc:** ${guide.sourcePages} slide` : ''),
   );
   lines.push('');
 
@@ -32,7 +42,9 @@ export function renderSummaryMarkdown(
     lines.push('');
   }
 
-  if (summary.sections?.length) {
+  if (guide) {
+    renderGuideSections(lines, guide);
+  } else if (summary.sections?.length) {
     lines.push('## Nội dung chính');
     lines.push('');
     for (const section of summary.sections) {
@@ -57,7 +69,9 @@ export function renderSummaryMarkdown(
       lines.push(
         `| **${escapeCell(t.term)}** | ${escapeCell(
           t.definitionEn,
-        )} | ${escapeCell(t.glossVi)} |`,
+        )}${t.exampleEn ? ` *(${escapeCell(t.exampleEn)})*` : ''} | ${escapeCell(
+          t.glossVi,
+        )} |`,
       );
     }
     lines.push('');
@@ -67,7 +81,14 @@ export function renderSummaryMarkdown(
     lines.push('## Công thức & ký hiệu (Formulas)');
     lines.push('');
     for (const f of summary.formulas) {
-      lines.push(`- \`${f}\``);
+      if (typeof f === 'string') {
+        lines.push(`- \`${f}\``);
+      } else {
+        lines.push(
+          `- \`${f.expression}\` — ${f.meaningEn}` +
+            (f.meaningVi ? ` *(${f.meaningVi})*` : ''),
+        );
+      }
     }
     lines.push('');
   }
@@ -86,6 +107,112 @@ export function renderSummaryMarkdown(
   lines.push(`*Được tóm tắt tự động bởi AI Study OS — ${dateStr}.*`);
 
   return lines.join('\n');
+}
+
+/** Phần thân của study guide: đoạn văn, hình, ví dụ, lỗi thường gặp, tự kiểm tra. */
+function renderGuideSections(lines: string[], guide: StudyGuide): void {
+  for (const section of guide.sections) {
+    const heading = section.headingVi
+      ? `${section.heading} — *${section.headingVi}*`
+      : section.heading;
+    lines.push(`## ${heading}`);
+    lines.push('');
+    if (section.slideRange) {
+      lines.push(`*${section.slideRange}*`);
+      lines.push('');
+    }
+
+    for (const paragraph of splitParagraphs(section.explanationEn)) {
+      lines.push(paragraph);
+      lines.push('');
+    }
+
+    for (const figure of figuresOf(guide.figures, section.id)) {
+      lines.push(
+        `![${escapeCell(figure.captionEn || 'Figure')}](${figure.url})`,
+      );
+      lines.push('');
+      if (figure.captionEn) {
+        lines.push(
+          `*${figure.captionEn}${figure.captionVi ? ` — ${figure.captionVi}` : ''}*`,
+        );
+        lines.push('');
+      }
+    }
+
+    if (section.notesVi?.length) {
+      lines.push('**Chú thích tiếng Việt**');
+      lines.push('');
+      for (const note of section.notesVi) lines.push(`- ${note}`);
+      lines.push('');
+    }
+
+    if (section.points?.length) {
+      lines.push('**Ý chính**');
+      lines.push('');
+      for (const point of section.points) lines.push(`- ${point}`);
+      lines.push('');
+    }
+
+    if (section.exampleEn) {
+      lines.push('**Ví dụ áp dụng**');
+      lines.push('');
+      for (const paragraph of splitParagraphs(section.exampleEn)) {
+        lines.push(paragraph);
+        lines.push('');
+      }
+      if (section.exampleVi) {
+        lines.push(`*${section.exampleVi}*`);
+        lines.push('');
+      }
+    }
+
+    if (section.pitfallsVi?.length) {
+      lines.push('**Lỗi thường gặp**');
+      lines.push('');
+      for (const pitfall of section.pitfallsVi) lines.push(`- ${pitfall}`);
+      lines.push('');
+    }
+
+    if (section.checks?.length) {
+      lines.push('**Tự kiểm tra**');
+      lines.push('');
+      for (const check of section.checks) {
+        lines.push(`- **${check.q}** → ${check.a}`);
+      }
+      lines.push('');
+    }
+  }
+
+  // Hình không gắn được vào mục nào thì gom lại cuối bài, còn hơn bỏ đi.
+  const orphans = guide.figures.filter((f) => !f.sectionId);
+  if (orphans.length) {
+    lines.push('## Hình khác trong tài liệu');
+    lines.push('');
+    for (const figure of orphans) {
+      lines.push(`![${escapeCell(figure.captionEn || 'Figure')}](${figure.url})`);
+      lines.push('');
+      if (figure.captionEn) {
+        lines.push(
+          `*Slide ${figure.page} — ${figure.captionEn}${
+            figure.captionVi ? ` (${figure.captionVi})` : ''
+          }*`,
+        );
+        lines.push('');
+      }
+    }
+  }
+}
+
+function figuresOf(figures: GuideFigure[], sectionId: string): GuideFigure[] {
+  return (figures || []).filter((f) => f.sectionId === sectionId);
+}
+
+function splitParagraphs(text: string): string[] {
+  return (text || '')
+    .split(/\n{2,}/)
+    .map((p) => p.replace(/\s*\n\s*/g, ' ').trim())
+    .filter(Boolean);
 }
 
 function escapeCell(value: string): string {
@@ -116,21 +243,25 @@ export function renderSummaryHtml(
     line-height: 1.65; color: #1f2937; max-width: 820px;
     margin: 0 auto; padding: 40px 28px 80px; background: #fff;
   }
-  h1 { font-size: 1.9rem; margin: 0 0 .4em; color: #4c1d95; }
+  /* Bảng màu hệ "Bản vẽ" (tech.md §13): lam = kết cấu/tiếng Anh,
+     đỏ đất = chú thích tiếng Việt. Bản in ra giấy nhìn cùng một hệ với app. */
+  h1 { font-size: 1.9rem; margin: 0 0 .4em; color: #1c3d5a; }
   h2 { font-size: 1.35rem; margin: 1.6em 0 .5em; padding-bottom: .2em;
-       border-bottom: 2px solid #ede9fe; color: #5b21b6; }
-  h3 { font-size: 1.1rem; margin: 1.1em 0 .4em; color: #6d28d9; }
-  blockquote { margin: 0 0 1em; padding: .6em 1em; background: #f5f3ff;
-       border-left: 4px solid #a78bfa; border-radius: 6px; color: #4c1d95; }
+       border-bottom: 2px solid #d9dee3; color: #1c3d5a; }
+  h3 { font-size: 1.1rem; margin: 1.1em 0 .4em; color: #2a5d82; }
+  blockquote { margin: 0 0 1em; padding: .6em 1em; background: #f4f6f7;
+       border-left: 4px solid #2a5d82; border-radius: 4px; color: #1c3d5a; }
+  img { max-width: 100%; height: auto; display: block; margin: 1em 0 .4em;
+        border: 1px solid #d9dee3; border-radius: 4px; background: #fff; }
   table { border-collapse: collapse; width: 100%; margin: .5em 0 1.2em; font-size: .95rem; }
   th, td { border: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; vertical-align: top; }
-  th { background: #f5f3ff; color: #4c1d95; }
+  th { background: #f4f6f7; color: #1c3d5a; }
   code { background: #f3f4f6; padding: .1em .35em; border-radius: 4px;
          font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: .9em; }
   ul { padding-left: 1.3em; }
   li { margin: .2em 0; }
   hr { border: none; border-top: 1px solid #e5e7eb; margin: 2em 0 1em; }
-  em { color: #6b7280; }
+  em { color: #7d3f2e; }  /* chú thích tiếng Việt = mực đỏ đất */
   @media print {
     body { padding: 0 12px; max-width: none; }
     h2 { break-after: avoid; }
@@ -245,6 +376,13 @@ function splitRow(line: string): string[] {
 function inlineMd(text: string): string {
   // Escape HTML first, then apply inline markdown on the escaped text.
   let out = escapeHtml(text);
+  // Ảnh: ![chú thích](url). Chỉ nhận http(s) — chặn javascript:/data: chèn
+  // qua chú thích do model sinh ra.
+  out = out.replace(
+    /!\[([^\]]*)\]\((https?:\/\/[^\s)"']+)\)/g,
+    (_m, alt: string, url: string) =>
+      `<img src="${escapeAttr(url)}" alt="${escapeAttr(alt)}" loading="lazy" />`,
+  );
   // inline code
   out = out.replace(/`([^`]+)`/g, (_m, c) => `<code>${c}</code>`);
   // bold
@@ -259,4 +397,9 @@ function escapeHtml(text: string): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+/** Dùng cho giá trị nằm trong thuộc tính HTML (src, alt). */
+function escapeAttr(text: string): string {
+  return escapeHtml(text).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }

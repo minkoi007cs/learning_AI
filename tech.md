@@ -842,6 +842,10 @@ Mã lỗi giữ nguyên khi sửa, để `process.md` tham chiếu được.
 | **BUG-37** | Xoá Subject → cascade xoá SlideSession, nhưng Flashcard `SetNull` → thẻ mồ côi không rõ nguồn |
 | **BUG-39** | ✅ **Đã sửa 2026-09-08.** `PrismaService.onModuleInit` gọi `$connect()` trần → database chưa sẵn sàng lúc khởi động là **sập cả tiến trình**. Trên Vercel nghĩa là lỗi 500 trắng trang, và `/v1/health` (vốn có try/catch để báo "disconnected") cũng vô dụng vì app chưa kịp chạy. Nay chỉ ghi log cảnh báo, Prisma tự nối lại ở truy vấn đầu |
 | **BUG-38** | ✅ **Đã sửa 2026-09-08.** `env_get()` trong `scripts/lib.sh` không cắt chú thích cuối dòng → mọi biến trong `.env` có `# chú thích` bị đọc kèm rác; `check-ai.sh` báo "model không tồn tại" trong khi model có thật. Bản sửa phân biệt giá trị có nháy (dấu `#` là nội dung) và không nháy (dấu `#` là chú thích), cộng chốt chặn ở `check-ai.sh` |
+| **BUG-40** | ✅ **Đã sửa 2026-09-10.** Google khoá `gemini-2.5-flash` / `-lite` với tài khoản mới ("no longer available to new users") → mọi lượt gọi trả 404. Thư viện OpenAI không đọc được lỗi dạng mảng JSON của Google nên hiện ra `404 status code (no body)` — vô nghĩa với người dùng. Đổi sang `gemini-3.6-flash` + `gemini-3.5-flash-lite` (đã gọi thử trực tiếp trước khi ghi vào tài liệu) |
+| **BUG-41** | ✅ **Đã sửa 2026-09-10.** Tóm tắt slide quá sơ sài: `MAX_TEXT_CHARS = 40000` **cắt cụt** tài liệu dài, rồi ép model nén tất cả vào MỘT lượt gọi 6.000 token với prompt toàn chữ "summarize/concise" → 40.000 ký tự nguồn ra 7.000 ký tự gạch đầu dòng. Nay đọc hết tài liệu, chia lô theo trang, mỗi lô được giảng thành đoạn văn (xem §16) |
+| **BUG-42** | ✅ **Đã sửa 2026-09-10.** Đầu ra dài chạm trần token → JSON đứt giữa chừng → `parseModelJson` trả null → mất trắng cả lượt gọi 40 giây dù 90% nội dung đã viết xong. Thêm tầng cứu `closeTruncatedJson`: cắt lùi về phần tử hoàn chỉnh cuối cùng rồi đóng ngoặc. Lưu ý riêng của Gemini 3.x: **token suy nghĩ tính chung vào `max_tokens`**, nên phải nới trần rộng hơn nhiều độ dài chữ mong muốn |
+| **BUG-43** | ✅ **Đã sửa 2026-09-10.** Gói Gemini miễn phí giới hạn số lượt/phút; gặp 429 là code cũ nhảy ngay sang model dự phòng — vốn **dùng chung hạn mức** nên cũng 429 → hỏng cả lượt. Nay chờ tăng dần (2s → 5s → 11s, cộng nhiễu ngẫu nhiên) rồi mới đổi model; lỗi hết hạn mức dịch thành câu tiếng Việt chỉ rõ việc cần làm (`AIQuotaError`) |
 
 ---
 
@@ -1054,3 +1058,72 @@ Trước khi tuyên bố hoàn thành bất kỳ việc gì:
 - [ ] Trạng thái lỗi có thông báo dễ hiểu, không phải mã lỗi thô
 - [ ] **Đã ghi vào `process.md`**
 - [ ] **Đã cập nhật `tech.md` nếu có gì thay đổi**
+
+---
+
+## 16. STUDY GUIDE — cách bài học được dựng (TRIỂN KHAI 2026-09-10)
+
+### 16.1 Vì sao phải làm lại
+
+Bản tóm tắt đời đầu nén cả tập slide vào **một** lượt gọi model, cắt tài liệu ở
+40.000 ký tự, và bảo model "summarize, concise". Đo trên bài thật của Khoi:
+39.869 ký tự nguồn → 6 mục, 12 thuật ngữ, 7.083 ký tự markdown. Đọc lại thì
+đúng là "sơ sài" — không phải model kém, mà là **mình đã yêu cầu đúng thứ đó**.
+
+Bản mới đảo ngược yêu cầu: đọc hết, chia nhỏ, và bảo model **giảng bài** thay
+vì tóm tắt. Cùng bộ slide mẫu 6 trang: 3–6 mục, mỗi mục 1.300–2.500 ký tự văn
+xuôi, kèm ví dụ áp dụng, lỗi thường gặp, câu tự kiểm tra và hình có chú thích
+→ ~25.000 ký tự markdown.
+
+### 16.2 Đường đi của một file
+
+```
+Tải lên  →  đọc file (chữ theo TỪNG TRANG + rút ảnh nhúng)
+         →  lưu ảnh lên Supabase Storage
+         →  chia lô theo ranh giới trang (~3.500 ký tự/lô)
+         →  TRẢ VỀ NGAY  (giao diện có id để hiện tiến độ)
+
+/process (gọi lặp, mỗi lượt ~40 giây)
+         →  [nếu slide là ảnh scan] OCR bằng vision
+         →  giảng từng lô (2 lô song song) → lưu ngay sau mỗi lô
+         →  chú thích ảnh bằng vision (3 ảnh/lượt)
+         →  lượt tổng hợp: tiêu đề, tổng quan, mẹo ôn thi
+         →  ghép bài, đánh số mục, gắn hình vào đúng mục, kết xuất markdown
+```
+
+**Vì sao gọi lặp thay vì một lượt:** giảng kỹ một tập slide dài mất vài phút,
+vượt giới hạn thời gian của hàm serverless. Mỗi nhịp làm xong là **lưu lại
+ngay**, nên đóng tab hay rớt mạng cũng không mất công đã làm — mở lại bấm
+"Tiếp tục" là chạy nốt.
+
+### 16.3 Ảnh: lấy được gì và không lấy được gì
+
+| | Kết quả |
+|---|---|
+| PDF có ảnh nhúng (ảnh chụp, bản scan, hình dán từ Illustrator/CAD) | ✅ Rút được — đọc trực tiếp image XObject bằng `pdfjs`, mã hoá lại bằng `pngjs`/`jpeg-js`, **không cần thư viện biên dịch sẵn** nên deploy Vercel vẫn nhẹ |
+| PPTX | ✅ Rút từ `ppt/media/*`, gắn vào đúng slide qua file `.rels` |
+| **Hình vẽ dạng vector** (biểu đồ vẽ thẳng trong PowerPoint, nét CAD xuất ra PDF) | ❌ **Chưa lấy được** — chúng là lệnh vẽ chứ không phải ảnh. Muốn lấy phải kết xuất cả trang thành ảnh (`pdfjs` + canvas biên dịch sẵn), đổi lại gói deploy nặng thêm và ảnh to hơn nhiều. Để dành cho đợt sau, khi biết slide thật của Khoi thiên về loại nào |
+
+Lọc ảnh rác (logo trường in trên mọi trang, gạch trang trí): bỏ ảnh nhỏ hơn
+100px hoặc dưới 30.000 pixel, bỏ ảnh có tỉ lệ dài/ngang quá 12, bỏ ảnh xuất
+hiện từ **3 trang trở lên** (gần như chắc chắn là khung nền), trần 24 ảnh mỗi
+tài liệu. Sau đó model nhìn ảnh và tự đánh dấu `skip` cho hình vô nghĩa.
+
+### 16.4 Hạn mức Gemini là thứ chặn thật sự
+
+Đo lúc kiểm thử: không phải token, mà **số lượt/phút của gói miễn phí** mới là
+giới hạn. Một bài 6 slide tốn ~5 lượt gọi; bài 40 slide tốn ~15 lượt. Vì vậy:
+
+- chỉ chạy **2 lô song song** (3 là dính 429 liên tục);
+- gặp 429 thì **chờ rồi thử lại** trước khi đổi model — model dự phòng dùng
+  chung hạn mức nên đổi ngay là vô ích;
+- chú thích ảnh hỏng thì **vẫn giữ hình** (mất chú thích, không mất hình);
+- hết hạn mức thì báo tiếng Việt kèm việc cần làm, và phần đã giảng xong vẫn
+  nằm nguyên trong database.
+
+### 16.5 Hai đời dữ liệu sống chung
+
+`SlideSession.summary` chứa **cả hai**: bản cũ (không có `version`) và study
+guide mới (`version: 2`). Giao diện kiểm tra `version === 2` để chọn cách hiện.
+Bản tóm tắt cũ vì vậy vẫn mở được bình thường — không có bước "chuyển đổi dữ
+liệu" nào cả, và cũng không được xoá kiểu `SlideSummary` đi.

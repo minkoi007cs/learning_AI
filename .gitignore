@@ -11,6 +11,8 @@ build/
 .env
 .env.local
 .env*.local
+.env.test
+.env.*.test
 
 # OS / editor
 .DS_Store

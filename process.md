@@ -27,6 +27,89 @@
 
 ---
 
+## [2026-09-10] Tóm tắt slide → study guide: đọc hết tài liệu, giảng thành bài, kèm hình có chú thích
+
+**Loại:** tính năng + sửa lỗi
+**Mã liên quan:** BUG-05, BUG-06, BUG-40, BUG-41, BUG-42, BUG-43
+**Trạng thái:** ✅ xong (đã chạy thử thật đầu-cuối trên database + Gemini thật)
+
+### Vì sao
+
+Khoi dùng thử rồi nói bản tóm tắt "khá sơ sài". Đo lại bản gần nhất trong
+database: **39.869 ký tự nguồn → 7.083 ký tự markdown, 6 mục, 12 thuật ngữ.**
+Nhìn con số là ra nguyên nhân, và nó không phải lỗi của model:
+
+1. `MAX_TEXT_CHARS = 40000` **cắt cụt** tài liệu — con số 39.869 chính là dấu
+   vết của việc chạm trần, tức là phần đuôi bài giảng chưa bao giờ được đọc.
+2. Cả tài liệu bị nén vào **một** lượt gọi 6.000 token.
+3. Prompt viết bằng chữ "summarize", "concise", "concise English point" →
+   model trả về đúng thứ được yêu cầu: gạch đầu dòng cụt.
+
+### Đã làm
+
+- **Đọc hết, không cắt.** Bỏ trần 40.000. Tách chữ theo TỪNG TRANG rồi gom
+  thành lô ~3.500 ký tự theo ranh giới trang → mỗi mục trích dẫn được
+  "Slides 4–7".
+- **Xử lý nhiều nhịp.** `POST /slides/:id/process` làm ~40 giây rồi trả tiến
+  độ; giao diện gọi lặp và hiện thanh tiến độ. Lưu sau mỗi lô nên rớt mạng
+  hay đóng tab không mất công đã làm (chính là BUG-05).
+- **Prompt đổi vai:** từ "tóm tắt" sang "giảng bài" — mỗi mục 3–6 đoạn văn
+  tiếng Anh, chú thích tiếng Việt ở lề, ví dụ áp dụng có số, lỗi thường gặp,
+  câu tự kiểm tra.
+- **Hình ảnh.** Rút ảnh nhúng trong PDF (`pdfjs` + `pngjs`/`jpeg-js`, không
+  cần thư viện biên dịch sẵn nên Vercel vẫn deploy được) và trong PPTX
+  (`ppt/media` + `.rels`), lọc logo/hoa văn bằng hash + kích thước, lưu lên
+  Supabase Storage, rồi cho model **nhìn ảnh** để viết chú thích Anh–Việt và
+  gắn vào đúng mục.
+- **PDF scan** (BUG-06): chữ dưới 400 ký tự mà có ảnh → OCR bằng vision trước
+  rồi mới chia lô.
+- **Giao diện** dựng lại theo bố cục "Bản vẽ" hai làn: văn giảng tiếng Anh ở
+  cột chính, chú thích tiếng Việt + hình kèm lời giải thích ở lề phải, hộp ví
+  dụ (vàng đất), hộp lỗi thường gặp (đỏ đất), phần tự kiểm tra gập/mở.
+
+### Ba lỗi phát hiện KHI CHẠY THẬT (không đọc code nào ra được)
+
+- **BUG-40** — `gemini-2.5-flash` đã bị Google khoá với tài khoản mới; lỗi
+  hiện ra là `404 status code (no body)` vì thư viện OpenAI không đọc được
+  định dạng lỗi của Google. Đổi sang `gemini-3.6-flash`.
+- **BUG-42** — đầu ra dài chạm trần token, JSON đứt giữa chừng, mất trắng cả
+  lượt gọi 40 giây. Thêm tầng cứu `closeTruncatedJson` (giữ phần tử hoàn
+  chỉnh, đóng ngoặc còn mở) + nới `max_tokens`. Ghi lại một điều đáng nhớ:
+  **Gemini 3.x tính token suy nghĩ vào chung trần `max_tokens`**.
+- **BUG-43** — hạn mức lượt/phút của gói miễn phí mới là thứ chặn thật sự,
+  không phải token. Chạy 3 lô song song là dính 429 liên tục → hạ xuống 2,
+  thêm chờ tăng dần, và **chỉ đổi sang model dự phòng sau khi đã chờ** (model
+  dự phòng dùng chung hạn mức, đổi ngay là vô ích).
+
+### Cách kiểm thử
+
+Dựng PostgreSQL trong máy ảo, một kho ảnh giả nói đúng REST của Supabase
+Storage, và một bộ slide PDF mẫu có bản vẽ raster kèm nhãn (biểu đồ hệ số ánh
+sáng, mặt cắt ô văng, sơ đồ pilotis…). Chạy nguyên luồng đăng ký → tạo môn →
+tải slide → xử lý → đọc kết quả. **Không đụng vào database thật của Khoi.**
+
+Kết quả trên bộ mẫu 6 trang: 3–6 mục, mỗi mục 1.300–2.500 ký tự văn xuôi,
+5/5 hình rút được và được chú thích đúng nội dung (ví dụ: *"mặt cắt cho thấy ô
+văng ngang chặn nắng hè góc cao 70° nhưng vẫn cho nắng đông góc thấp 30°"*),
+tổng ~25.000 ký tự markdown. Chụp màn hình kiểm ở chế độ sáng, tối và khung
+390px — không tràn ngang.
+
+### Việc Khoi cần làm để có hình
+
+Hình cần một kho ảnh. Vào Supabase → Project Settings → API → copy khoá
+**service_role**, dán vào biến `SUPABASE_SERVICE_ROLE_KEY` trên Vercel (và
+trong `backend/.env` nếu chạy máy nhà). Kho ảnh tự tạo ở lần chạy đầu, không
+cần bấm gì thêm. Chưa dán khoá thì bài vẫn chạy, chỉ là không có hình.
+
+### Còn lại
+
+- Hình vẽ **dạng vector** (biểu đồ vẽ trong PowerPoint, nét CAD) chưa lấy
+  được — xem `tech.md` §16.3 để biết đánh đổi khi muốn làm.
+- Chưa đo trên bộ slide thật của Khoi (bài 40 slide sẽ mất ~4–8 phút và tốn
+  ~15 lượt Gemini).
+
+---
+
 ## BẢNG THEO DÕI LỖI
 
 Cập nhật ô "Trạng thái" mỗi khi động vào. Chi tiết từng lỗi xem `tech.md` mục 10.
@@ -38,8 +121,8 @@ Cập nhật ô "Trạng thái" mỗi khi động vào. Chi tiết từng lỗi 
 | BUG-02 | Vercel không gọi được Ollama trên MacBook + giới hạn 60s | ⬜ Chưa |
 | BUG-03 | Whisper khoá cứng `language:'en'` | 🚧 Một nửa — code đã đọc WHISPER_LANGUAGE; còn phải dựng sidecar faster-whisper |
 | BUG-04 | Không giới hạn gọi AI / đăng ký mở tự do | ⬜ Chưa |
-| BUG-05 | Session kẹt `processing` vĩnh viễn, không có nút thử lại | ⬜ Chưa |
-| BUG-06 | PDF scan báo lỗi thay vì đọc bằng vision | ⬜ Chưa |
+| BUG-05 | Session kẹt `processing` vĩnh viễn, không có nút thử lại | ✅ Xong (2026-09-10) — có nút "Tiếp tục" ở danh sách; tiến độ lưu sau mỗi nhịp nên chạy tiếp từ chỗ dở |
+| BUG-06 | PDF scan báo lỗi thay vì đọc bằng vision | ✅ Xong (2026-09-10) — chữ dưới 400 ký tự mà có ảnh thì tự OCR bằng vision rồi mới chia lô |
 | BUG-07 | Font Inter thiếu subset `vietnamese` | ✅ Xong (2026-09-08) |
 | BUG-08 | Quiz tạo xong không mở lại được | ✅ Xong (2026-09-08) — API xong, giao diện danh sách quiz còn thiếu |
 | BUG-09 | RAG sai: chưa index slide, lưu cả câu AI, nạp hết vector vào RAM | ⬜ Chưa |

@@ -7,6 +7,7 @@ import { ThrottlerGuard } from '@nestjs/throttler';
 // Core modules
 import { PrismaModule } from './prisma';
 import { AIModule } from './ai';
+import { StorageModule } from './storage';
 
 // Feature modules
 import { AuthModule } from './auth/auth.module';
@@ -43,6 +44,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
     // Core
     PrismaModule,
     AIModule,
+    StorageModule,
 
     // Features
     AuthModule,

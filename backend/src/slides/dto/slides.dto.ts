@@ -76,4 +76,14 @@ export class UploadSlideDto {
   @IsString()
   @MaxLength(200)
   title?: string;
+
+  @ApiPropertyOptional({
+    enum: ['deep', 'standard'],
+    default: 'deep',
+    description:
+      'deep = giảng kỹ như giáo trình (mặc định); standard = gọn và nhanh hơn.',
+  })
+  @IsOptional()
+  @IsIn(['deep', 'standard'])
+  depth?: 'deep' | 'standard';
 }

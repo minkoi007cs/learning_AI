@@ -25,14 +25,14 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  essays     Essay[]
-  lectures   Lecture[]
-  flashcards Flashcard[]
-  quizzes    Quiz[]
-  aiContexts AIContext[]
-  chatSessions ChatSession[]
-  studyStats StudyStats?
-  subjects   Subject[]
+  essays        Essay[]
+  lectures      Lecture[]
+  flashcards    Flashcard[]
+  quizzes       Quiz[]
+  aiContexts    AIContext[]
+  chatSessions  ChatSession[]
+  studyStats    StudyStats?
+  subjects      Subject[]
   slideSessions SlideSession[]
 
   @@map("users")
@@ -46,13 +46,13 @@ model Essay {
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   prompt          String
-  rubric          Json     // Rubric criteria as JSON
+  rubric          Json // Rubric criteria as JSON
   content         String?  @db.Text
   outline         String?  @db.Text
-  scorePrediction Int?     // 0-100
-  feedback        Json?    // Detailed feedback per rubric criteria
+  scorePrediction Int? // 0-100
+  feedback        Json? // Detailed feedback per rubric criteria
   status          String   @default("pending") // pending | generating | completed | failed
-  improvementLog  Json?    // History of improvements
+  improvementLog  Json? // History of improvements
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -74,12 +74,12 @@ model Lecture {
   cleanTranscript String?  @db.Text
   summaryShort    String?  @db.Text
   summaryDetailed String?  @db.Text
-  topics          Json?    // Array of extracted topics
-  keyConcepts     Json?    // Key concepts, definitions, formulas
-  examQuestions   Json?    // Likely exam questions
+  topics          Json? // Array of extracted topics
+  keyConcepts     Json? // Key concepts, definitions, formulas
+  examQuestions   Json? // Likely exam questions
   status          String   @default("uploaded") // uploaded | transcribing | processing | completed | failed
-  processingLog   Json?    // Job processing history
-  duration        Int?     // Audio duration in seconds
+  processingLog   Json? // Job processing history
+  duration        Int? // Audio duration in seconds
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -94,23 +94,23 @@ model Lecture {
 // FLASHCARDS (SRS)
 // ============================================
 model Flashcard {
-  id              String    @id @default(uuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceLectureId String?
-  sourceLecture   Lecture?  @relation(fields: [sourceLectureId], references: [id], onDelete: SetNull)
+  id                   String        @id @default(uuid())
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceLectureId      String?
+  sourceLecture        Lecture?      @relation(fields: [sourceLectureId], references: [id], onDelete: SetNull)
   sourceSlideSessionId String?
   sourceSlideSession   SlideSession? @relation(fields: [sourceSlideSessionId], references: [id], onDelete: SetNull)
-  question        String    @db.Text
-  answer          String    @db.Text
-  difficulty      String    @default("medium") // easy | medium | hard
-  nextReviewDate  DateTime  @default(now())
-  interval        Int       @default(1) // Days until next review
-  easeFactor      Float     @default(2.5) // SM-2 ease factor
-  repetitions     Int       @default(0)
-  lastReviewedAt  DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  question             String        @db.Text
+  answer               String        @db.Text
+  difficulty           String        @default("medium") // easy | medium | hard
+  nextReviewDate       DateTime      @default(now())
+  interval             Int           @default(1) // Days until next review
+  easeFactor           Float         @default(2.5) // SM-2 ease factor
+  repetitions          Int           @default(0)
+  lastReviewedAt       DateTime?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@index([userId, nextReviewDate])
   @@index([sourceLectureId])
@@ -122,26 +122,26 @@ model Flashcard {
 // QUIZ SYSTEM
 // ============================================
 model Quiz {
-  id              String   @id @default(uuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sourceLectureId String?
-  sourceLecture   Lecture?  @relation(fields: [sourceLectureId], references: [id], onDelete: SetNull)
+  id                   String        @id @default(uuid())
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceLectureId      String?
+  sourceLecture        Lecture?      @relation(fields: [sourceLectureId], references: [id], onDelete: SetNull)
   // BUG-08: quiz sinh từ slide trước đây không có đường quay về nguồn nên đóng
   // cửa sổ là mất luôn. Hai quan hệ dưới cho phép liệt kê lại và mở lại.
   sourceSlideSessionId String?
   sourceSlideSession   SlideSession? @relation(fields: [sourceSlideSessionId], references: [id], onDelete: SetNull)
-  subjectId       String?
-  subject         Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
-  title           String?
-  questions       Json     // Array of quiz questions with answers
-  score           Int?     // Percentage score
-  totalQuestions  Int      @default(0)
-  correctAnswers  Int      @default(0)
-  timeSpent       Int?     // Seconds
-  status          String   @default("pending") // pending | in_progress | completed
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  subjectId            String?
+  subject              Subject?      @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  title                String?
+  questions            Json // Array of quiz questions with answers
+  score                Int? // Percentage score
+  totalQuestions       Int           @default(0)
+  correctAnswers       Int           @default(0)
+  timeSpent            Int? // Seconds
+  status               String        @default("pending") // pending | in_progress | completed
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@index([userId])
   @@index([sourceLectureId])
@@ -158,10 +158,10 @@ model AIContext {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String   @db.Text
-  embedding Json?    // Vector embedding stored as JSON array
-  type      String   // essay | lecture | note | flashcard
-  sourceId  String?  // Reference to source entity
-  metadata  Json?    // Additional metadata
+  embedding Json? // Vector embedding stored as JSON array
+  type      String // essay | lecture | note | flashcard
+  sourceId  String? // Reference to source entity
+  metadata  Json? // Additional metadata
   createdAt DateTime @default(now())
 
   @@index([userId, type])
@@ -177,7 +177,7 @@ model ChatSession {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String?
   messages  Json     @default("[]") // Array of chat messages
-  context   Json?    // Injected context for RAG
+  context   Json? // Injected context for RAG
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -189,19 +189,19 @@ model ChatSession {
 // STUDY STATS / ANALYTICS
 // ============================================
 model StudyStats {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  totalStudyTime  Int      @default(0) // Minutes
-  streakDays      Int      @default(0)
-  longestStreak   Int      @default(0)
-  lastStudyDate   DateTime?
-  weakTopics      Json?    // Array of weak topics
-  retentionScore  Float?   // Overall retention percentage
-  dailyGoal       Int      @default(30) // Minutes per day
-  weeklyStats     Json?    // Weekly performance data
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  totalStudyTime Int       @default(0) // Minutes
+  streakDays     Int       @default(0)
+  longestStreak  Int       @default(0)
+  lastStudyDate  DateTime?
+  weakTopics     Json? // Array of weak topics
+  retentionScore Float? // Overall retention percentage
+  dailyGoal      Int       @default(30) // Minutes per day
+  weeklyStats    Json? // Weekly performance data
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@map("study_stats")
 }
@@ -216,7 +216,7 @@ model Subject {
   name        String
   description String?
   color       String   @default("violet") // UI accent: violet | blue | emerald | amber | rose | cyan
-  icon        String   @default("book")    // lucide icon key
+  icon        String   @default("book") // lucide icon key
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -228,21 +228,32 @@ model Subject {
 }
 
 model SlideSession {
-  id              String   @id @default(uuid())
+  id              String  @id @default(uuid())
   userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   subjectId       String
-  subject         Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  subject         Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   title           String
   sourceFileName  String?
-  sourceFileType  String?  // pdf | pptx | image | text
-  extractedText   String?  @db.Text // raw text pulled from the slide file
-  summary         Json?    // structured summary (overview, sections, keyTerms, ...)
-  summaryMarkdown String?  @db.Text // rendered markdown (source of truth for downloads)
-  status          String   @default("uploaded") // uploaded | processing | completed | failed
-  errorMessage    String?  @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  sourceFileType  String? // pdf | pptx | image | text
+  extractedText   String? @db.Text // raw text pulled from the slide file
+  summary         Json? // structured summary (overview, sections, keyTerms, ...)
+  summaryMarkdown String? @db.Text // rendered markdown (source of truth for downloads)
+  status          String  @default("uploaded") // uploaded | processing | completed | failed
+  errorMessage    String? @db.Text
+
+  // ── Study guide đời 2 ────────────────────────────────────────────────
+  // Tài liệu dài phải xử lý làm nhiều lượt (mỗi lượt một lô) để không hết giờ
+  // hàm serverless; mấy cột dưới giữ trạng thái giữa các lượt gọi.
+  chunks        Json? // các lô văn bản đã chia theo ranh giới slide
+  chunkResults  Json? // kết quả của những lô đã xong
+  figures       Json? // ảnh đã lưu trên kho + chú thích do AI viết
+  progressDone  Int    @default(0)
+  progressTotal Int    @default(0)
+  depth         String @default("deep") // deep | standard
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   flashcards Flashcard[]
   quizzes    Quiz[]
@@ -256,17 +267,17 @@ model SlideSession {
 // JOB TRACKING
 // ============================================
 model JobRecord {
-  id          String   @id @default(uuid())
-  jobId       String   @unique
-  type        String   // transcription | summarization | flashcard | embedding | scoring
-  status      String   @default("queued") // queued | processing | completed | failed
-  entityId    String?  // Reference to related entity
-  entityType  String?  // essay | lecture
+  id          String    @id @default(uuid())
+  jobId       String    @unique
+  type        String // transcription | summarization | flashcard | embedding | scoring
+  status      String    @default("queued") // queued | processing | completed | failed
+  entityId    String? // Reference to related entity
+  entityType  String? // essay | lecture
   payload     Json?
   result      Json?
-  error       String?  @db.Text
-  attempts    Int      @default(0)
-  createdAt   DateTime @default(now())
+  error       String?   @db.Text
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now())
   completedAt DateTime?
 
   @@index([jobId])

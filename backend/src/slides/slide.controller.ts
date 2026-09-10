@@ -68,7 +68,24 @@ export class SlideController {
       subjectId,
       file,
       dto.title,
+      dto.depth || 'deep',
     );
+  }
+
+  /**
+   * Làm tiếp một nhịp xử lý (~40 giây) rồi trả tiến độ.
+   *
+   * VÌ SAO KHÔNG LÀM HẾT TRONG MỘT LƯỢT: giảng kỹ cả tài liệu mất vài phút,
+   * vượt giới hạn thời gian của hàm serverless. Giao diện gọi lặp endpoint
+   * này cho tới khi `status === 'completed'`, vừa không bị ngắt giữa chừng
+   * vừa có thanh tiến độ để nhìn.
+   */
+  @Post('slides/:id/process')
+  @ApiOperation({
+    summary: 'Process the next slice of work; call until status is completed',
+  })
+  processStep(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
+    return this.slideService.processStep(user.sub, id);
   }
 
   @Get('slides/:id')

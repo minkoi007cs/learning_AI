@@ -31,6 +31,23 @@ export class AIJsonParseError extends Error {
   }
 }
 
+/**
+ * Hết hạn mức phía nhà cung cấp AI (429) sau khi đã chờ và thử lại.
+ *
+ * Đây KHÔNG phải lỗi của người dùng và cũng không phải lỗi lập trình — gói
+ * Gemini miễn phí giới hạn số lượt mỗi phút và mỗi ngày. Thông báo phải nói rõ
+ * việc cần làm: chờ rồi bấm "Tiếp tục", vì bài đang làm dở đã được lưu lại.
+ */
+export class AIQuotaError extends Error {
+  constructor() {
+    super(
+      'Hết lượt AI miễn phí tạm thời (Google giới hạn số lượt mỗi phút/ngày). ' +
+        'Phần đã làm xong vẫn được giữ — chờ vài phút rồi bấm "Tiếp tục" để chạy nốt.',
+    );
+    this.name = 'AIQuotaError';
+  }
+}
+
 @Injectable()
 export class AIService implements OnModuleInit {
   private readonly logger = new Logger(AIService.name);
@@ -149,7 +166,7 @@ export class AIService implements OnModuleInit {
     const model = options.model || this.primaryModel;
 
     try {
-      return await this.executeCompletion(model, options);
+      return await this.withRetry(() => this.executeCompletion(model, options));
     } catch (error) {
       this.logger.warn(
         `Model chính ${model} lỗi, chuyển sang ${this.fallbackModel}: ${
@@ -157,10 +174,48 @@ export class AIService implements OnModuleInit {
         }`,
       );
       try {
-        return await this.executeCompletion(this.fallbackModel, options);
+        return await this.withRetry(() =>
+          this.executeCompletion(this.fallbackModel, options),
+        );
       } catch (fallbackError) {
         this.logger.error('Cả model chính và dự phòng đều lỗi', fallbackError);
+        // Hết hạn mức là chuyện xảy ra hằng ngày với gói Gemini miễn phí —
+        // người dùng phải đọc được lời khuyên đúng, không phải chuỗi
+        // "429 status code (no body)" vô nghĩa.
+        if (isQuotaError(error) || isQuotaError(fallbackError)) {
+          throw new AIQuotaError();
+        }
         throw fallbackError;
+      }
+    }
+  }
+
+  /**
+   * Thử lại khi gặp lỗi TẠM THỜI (quá số lượt/phút, máy chủ quá tải).
+   *
+   * VÌ SAO CẦN (BUG-43): gói Gemini miễn phí giới hạn số lượt mỗi phút. Khi
+   * nhiều lô chạy song song — hoặc mấy người bạn cùng dùng một lúc — sẽ dính
+   * 429. Bản cũ gặp lỗi là nhảy ngay sang model dự phòng, mà model dự phòng
+   * dùng CHUNG hạn mức đó nên cũng 429 nốt: mất luôn cả lượt gọi dù chỉ cần
+   * chờ vài giây.
+   *
+   * Chờ tăng dần + cộng thêm ngẫu nhiên để nhiều lô không cùng thức dậy một lúc.
+   */
+  private async withRetry<T>(run: () => Promise<T>): Promise<T> {
+    const delays = [2000, 5000, 11000];
+
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await run();
+      } catch (error) {
+        if (attempt >= delays.length || !isTransientAiError(error)) throw error;
+
+        const wait = delays[attempt] + Math.floor(Math.random() * 800);
+        this.logger.warn(
+          `Nhà cung cấp AI báo bận (${describeAiError(error)}) — chờ ${wait}ms rồi thử lại ` +
+            `(lần ${attempt + 1}/${delays.length}).`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, wait));
       }
     }
   }
@@ -233,12 +288,14 @@ export class AIService implements OnModuleInit {
       },
     ];
 
-    const response = await this.openai.chat.completions.create({
-      model,
-      messages,
-      temperature: options.temperature ?? 0.3,
-      max_tokens: options.maxTokens ?? 4096,
-    });
+    const response = await this.withRetry(() =>
+      this.openai.chat.completions.create({
+        model,
+        messages,
+        temperature: options.temperature ?? 0.3,
+        max_tokens: options.maxTokens ?? 4096,
+      }),
+    );
 
     const content = response.choices[0]?.message?.content;
     if (!content) throw new Error('Model đọc ảnh trả về nội dung rỗng');
@@ -377,4 +434,43 @@ function guessAudioMime(filename: string): string {
     flac: 'audio/flac',
   };
   return map[ext] || 'audio/mpeg';
+}
+
+/**
+ * Lỗi này có đáng chờ rồi thử lại không?
+ *
+ * 429 = vượt số lượt cho phép; 5xx = phía nhà cung cấp trục trặc; mất kết nối
+ * giữa chừng cũng vậy. Còn 400/401/404 (sai khoá, sai tên model) thì thử lại
+ * bao nhiêu lần cũng thế — phải để lỗi nổi lên cho người dùng biết mà sửa.
+ */
+export function isTransientAiError(error: unknown): boolean {
+  const status = (error as { status?: number; code?: string })?.status;
+  if (status === 429 || (status !== undefined && status >= 500 && status < 600)) {
+    return true;
+  }
+
+  const code = (error as { code?: string })?.code || '';
+  if (['ECONNRESET', 'ETIMEDOUT', 'EPIPE', 'ENOTFOUND'].includes(code)) {
+    return true;
+  }
+
+  const message = (error as Error)?.message || '';
+  return /\b(429|rate limit|overloaded|timeout|timed out|temporarily)\b/i.test(
+    message,
+  );
+}
+
+function describeAiError(error: unknown): string {
+  const status = (error as { status?: number })?.status;
+  if (status === 429) return 'hết lượt tạm thời (429)';
+  if (status) return `lỗi ${status}`;
+  return (error as Error)?.message?.slice(0, 80) || 'không rõ';
+}
+
+/** Riêng lỗi hết hạn mức (429) — phân biệt với lỗi tạm thời khác (5xx). */
+function isQuotaError(error: unknown): boolean {
+  const status = (error as { status?: number })?.status;
+  if (status === 429) return true;
+  const message = (error as Error)?.message || '';
+  return /\b(429|quota|rate limit|resource_exhausted)\b/i.test(message);
 }

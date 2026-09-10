@@ -159,6 +159,67 @@ export function repairJsonSyntax(input: string, aggressive = false): string {
 }
 
 /**
+ * Cứu JSON bị CẮT NGANG vì chạm trần token.
+ *
+ * VÌ SAO CẦN (BUG-42): study guide yêu cầu model viết vài đoạn văn cho mỗi
+ * mục, nên đầu ra dài. Chạm trần token thì câu trả lời đứt giữa chừng —
+ * `{"sections":[{...đủ...},{...dở dang` — và cả lượt gọi 40 giây coi như mất
+ * trắng dù 90% nội dung đã viết xong.
+ *
+ * Cách xử lý: cắt lùi về phần tử HOÀN CHỈNH cuối cùng rồi đóng các ngoặc còn
+ * mở. Giữ được những mục đã viết xong, chỉ bỏ mục dở dang.
+ */
+export function closeTruncatedJson(input: string): string | null {
+  const text = input.trim();
+  if (!text) return null;
+
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+  // Vị trí ngay sau phần tử hoàn chỉnh cuối cùng nằm trong một mảng/đối tượng.
+  let lastSafeCut = -1;
+  let safeStack: string[] = [];
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{' || ch === '[') {
+      stack.push(ch);
+      continue;
+    }
+    if (ch === '}' || ch === ']') {
+      stack.pop();
+      // Vừa đóng xong một phần tử mà vẫn còn ngoặc bao ngoài → cắt được ở đây.
+      if (stack.length > 0) {
+        lastSafeCut = i + 1;
+        safeStack = [...stack];
+      }
+      continue;
+    }
+  }
+
+  if (lastSafeCut === -1) return null;
+
+  let out = text.slice(0, lastSafeCut);
+  // Đóng ngược từ trong ra ngoài.
+  for (let i = safeStack.length - 1; i >= 0; i--) {
+    out += safeStack[i] === '{' ? '}' : ']';
+  }
+  return out;
+}
+
+/**
  * Thử mọi cách để lấy JSON ra từ đầu ra thô của model.
  * Trả về `null` nếu bó tay — người gọi quyết định thử lại hay báo lỗi.
  */
@@ -175,6 +236,9 @@ export function parseModelJson<T>(raw: string): T | null {
     block ? repairJsonSyntax(block) : null,
     repairJsonSyntax(cleaned, true),
     block ? repairJsonSyntax(block, true) : null,
+    // Tầng cuối: cứu phần đã viết xong của câu trả lời bị cắt ngang.
+    closeTruncatedJson(repairJsonSyntax(cleaned)),
+    closeTruncatedJson(repairJsonSyntax(cleaned, true)),
   ];
 
   for (const candidate of attempts) {
