@@ -32,3 +32,6 @@ state/
 
 # Bản sao lưu app cũ để đối chiếu — chỉ nằm trên máy, không đẩy lên repo
 _ban-cu-*/
+
+.turbo
+
