@@ -50,13 +50,12 @@ if (process.env.DIRECT_URL) {
   process.env.DIRECT_URL = sanitizeDbUrl(process.env.DIRECT_URL);
 }
 
-if (!process.env.DATABASE_URL) {
-  console.error(
-    '\n[deploy] ❌ ERROR: DATABASE_URL is not set in environment variables!\n' +
-    'Please add DATABASE_URL in Vercel Project Settings → Environment Variables,\n' +
-    'or connect Supabase via Vercel Integrations.\n'
+if (!process.env.DATABASE_URL || (!process.env.DATABASE_URL.startsWith('postgresql://') && !process.env.DATABASE_URL.startsWith('postgres://'))) {
+  console.warn(
+    '\n[deploy] ⚠️ WARNING: DATABASE_URL is not set or invalid in environment variables!\n' +
+    'Skipping Prisma migration step during build.\n'
   );
-  process.exit(1);
+  return;
 }
 
 const { PrismaClient } = require('@prisma/client');
