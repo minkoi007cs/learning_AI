@@ -35,7 +35,7 @@ model User {
   subjects      Subject[]
   slideSessions SlideSession[]
 
-  @@map("users")
+  @@map("lai_users")
 }
 
 // ============================================
@@ -57,7 +57,7 @@ model Essay {
   updatedAt       DateTime @updatedAt
 
   @@index([userId])
-  @@map("essays")
+  @@map("lai_essays")
 }
 
 // ============================================
@@ -87,7 +87,7 @@ model Lecture {
   quizzes    Quiz[]
 
   @@index([userId])
-  @@map("lectures")
+  @@map("lai_lectures")
 }
 
 // ============================================
@@ -115,7 +115,7 @@ model Flashcard {
   @@index([userId, nextReviewDate])
   @@index([sourceLectureId])
   @@index([sourceSlideSessionId])
-  @@map("flashcards")
+  @@map("lai_flashcards")
 }
 
 // ============================================
@@ -147,7 +147,7 @@ model Quiz {
   @@index([sourceLectureId])
   @@index([sourceSlideSessionId])
   @@index([subjectId])
-  @@map("quizzes")
+  @@map("lai_quizzes")
 }
 
 // ============================================
@@ -165,7 +165,7 @@ model AIContext {
   createdAt DateTime @default(now())
 
   @@index([userId, type])
-  @@map("ai_contexts")
+  @@map("lai_ai_contexts")
 }
 
 // ============================================
@@ -182,7 +182,7 @@ model ChatSession {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
-  @@map("chat_sessions")
+  @@map("lai_chat_sessions")
 }
 
 // ============================================
@@ -203,7 +203,7 @@ model StudyStats {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  @@map("study_stats")
+  @@map("lai_study_stats")
 }
 
 // ============================================
@@ -224,7 +224,7 @@ model Subject {
   quizzes       Quiz[]
 
   @@index([userId])
-  @@map("subjects")
+  @@map("lai_subjects")
 }
 
 model SlideSession {
@@ -260,7 +260,7 @@ model SlideSession {
 
   @@index([userId])
   @@index([subjectId])
-  @@map("slide_sessions")
+  @@map("lai_slide_sessions")
 }
 
 // ============================================
@@ -282,5 +282,5 @@ model JobRecord {
 
   @@index([jobId])
   @@index([entityId, entityType])
-  @@map("job_records")
+  @@map("lai_job_records")
 }
